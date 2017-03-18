@@ -24,8 +24,14 @@
 //
 
 
-#define RELE1 31
-#define RELE2 30
+#define RELE1 4
+#define RELE2 5
+#define OUT12V_1 6
+#define OUT12V_2 7
+#define OUT12V_3 8
+#define OUT12V_4 9
+
+char out = 9;
 void setup()
 {
 
@@ -34,14 +40,26 @@ void setup()
 	while (!Serial) {
 		; // wait for serial port to connect. Needed for native USB port only
 	}
+	pinMode(4, OUTPUT);
+	pinMode( 5 , OUTPUT);
+	pinMode(6, OUTPUT);
+	pinMode(7, OUTPUT);
+	pinMode(8, OUTPUT);
+	pinMode(9, OUTPUT);
    Serial.println("test");
 }
 
 void loop()
 {
-
-	if (digitalRead(A5))digitalWrite(RELE1,HIGH);
-	else digitalWrite(RELE1, LOW);
-	if (digitalRead(A4))digitalWrite(RELE2, HIGH);
-	else digitalWrite(RELE2, LOW);
+	digitalWrite(RELE1, HIGH);
+	delay(2000);
+	Serial.println("R1");
+    digitalWrite(RELE1, LOW);
+	delay(2000);
+	//if (digitalRead(A5)) {
+	//	//Serial.println("R1"); digitalWrite(RELE1, HIGH);
+	//}
+	//else digitalWrite(RELE1, LOW);
+	////if (digitalRead(A4))digitalWrite(RELE2, HIGH);
+	//else digitalWrite(RELE2, LOW);
 }
