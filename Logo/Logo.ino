@@ -22,10 +22,17 @@
 //I2C SCL  25
 //I2C SDA  24
 //
+#define IN1 A4
+#define IN2 A3
+#define IN3 A2
+#define IN4 A1
 
-
-#define RELE1 31
-#define RELE2 30
+#define RELE1 9
+#define RELE2 8
+#define OUT12V_1 7
+#define OUT12V_2 6
+#define OUT12V_3 5
+#define OUT12V_4 4
 void setup()
 {
 
@@ -34,14 +41,26 @@ void setup()
 	while (!Serial) {
 		; // wait for serial port to connect. Needed for native USB port only
 	}
+	pinMode(IN1, INPUT);
+	pinMode(IN2, INPUT);
+	pinMode(IN3, INPUT);
+	pinMode(IN4, INPUT);
+
+	pinMode(RELE1, OUTPUT);
+	pinMode(RELE2, OUTPUT);
+	pinMode(OUT12V_1, OUTPUT);
+	pinMode(OUT12V_2, OUTPUT);
+	pinMode(OUT12V_3, OUTPUT);
+	pinMode(OUT12V_4, OUTPUT);
+
    Serial.println("test");
 }
 
 void loop()
 {
 
-	if (digitalRead(A5))digitalWrite(RELE1,HIGH);
+	if (digitalRead(IN1))digitalWrite(RELE1,HIGH);
 	else digitalWrite(RELE1, LOW);
-	if (digitalRead(A4))digitalWrite(RELE2, HIGH);
+	if (digitalRead(IN2))digitalWrite(RELE2, HIGH);
 	else digitalWrite(RELE2, LOW);
 }
