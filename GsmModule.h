@@ -8,19 +8,24 @@
 #else
 	#include "WProgram.h"
 #endif
-
+#define COMGSM Serial1
 
 class GsmModule
 {
 public:
+	bool isOK;
+
 	GsmModule();
 	~GsmModule();
 	bool Init();
+	bool Setup ();
 	bool Call(String number);
 	bool Sms(String number, String message);
+	bool Sms (String number, char* message);
 	bool HangOut();
 	String Signal();
 	String Operator();
+
 private:
 	int timeout;
 	String rx_buffer;

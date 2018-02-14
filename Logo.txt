@@ -1,0 +1,1388 @@
+
+
+
+#include "Logo.h"
+
+#pragma region instance trid
+LogoBoard board;
+SoftwareSerial swSerial (11, 10);
+DateTime dateTime;
+GsmModule gsmModul;
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire (ONE_WIRE_BUS);
+
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors (&oneWire);
+#pragma endregion
+void setup ()
+{
+	//board.I_O_init ();
+	pinMode (inpNmbs[0], INPUT_PULLUP);
+	pinMode (inpNmbs[1], INPUT_PULLUP);
+	pinMode (inpNmbs[2], INPUT_PULLUP);
+	pinMode (inpNmbs[3], INPUT_PULLUP);
+	pinMode (outNmbs[0], OUTPUT);
+	pinMode (outNmbs[1], OUTPUT);
+	pinMode (outNmbs[2], OUTPUT);
+	pinMode (outNmbs[3], OUTPUT);
+	pinMode (outNmbs[4], OUTPUT);
+	pinMode (outNmbs[5], OUTPUT);
+	////COM1.begin (38400);
+	////COM1.println ("COM ok");
+	//for (int i = 0; i < 6; i++)
+	//{
+	//	outputs[i].blockSendOn = false;
+	//	outputs[i].blockSendOff = false;
+	//}
+	//for (int i = 0; i < 4; i++)
+	//{
+	//	inputs[i].blockSendOn = false;
+	//	inputs[i].blockSendOff = false;
+	//}
+
+
+	COM.begin (115200);
+	delay (2000);
+	//while (!Serial); // wait for serial port to connect. Needed for native USB port only
+	delay (100);
+	COMBLUE.begin (38400);
+	COMGSM.begin (9600);
+	//while (!swSerial);
+	//swSerial.println ("COM ok");
+	//Serial.println ("serial ok");
+
+	eepromPtr = 0;
+	EEPROM.get (eepromPtr, inputs);
+	eepromPtr = sizeof (inputs);
+	EEPROM.get (eepromPtr, outputs);
+	//dallas
+	// Start up the library
+	sensors.begin ();
+
+	// Grab a count of devices on the wire
+	numberOfDevices = sensors.getDeviceCount ();
+	//COM.println ("ok");
+	//COM.println (numberOfDevices, 10);
+	for (int i = 0; i < numberOfDevices; i++)
+	{
+		// Search the wire for address
+		sensors.getAddress (tempDeviceAddress, i);
+		sensors.getAddress (addr[i], i);
+		// set the resolution to TEMPERATURE_PRECISION bit (Each Dallas/Maxim device is capable of several different resolutions)
+		sensors.setResolution (tempDeviceAddress, TEMPERATURE_PRECISION);
+		//addr[0] = tempDeviceAddress;
+	}
+	for (int i = 0; i < 4; i++)
+	{
+		inputs[i].blockSendOn = false;
+		inputs[i].state = 0;
+		inputs[i].isCallingGsm = false;
+		inputs[i].isSendingSms = false;
+	}
+	//Timer1.initialize ();
+	//Timer1.attachInterrupt (TimerTick);
+	dateTime.Init ();
+	for (int i = 0; i < 6; i++)
+	{
+		outputs[i].state = 0;
+		outputs[i].blockSendOn = 0;
+		//outputs[i].IsTimeControl = 0;
+		//outputs[i].IsInputControl = 0;
+		//outputs[i].IsUseProgTmr = 0;
+		//outputs[i].IsUseSwitchClk = 0;
+		//outputs[i].IsUseThermostat = 0;
+		
+	}
+	casProzvaneni = 0;
+	//VypisPamet ();
+}
+
+
+void loop ()
+{
+	//static char counter = 0;
+	//char gsmSignal;
+	//String ok;
+	//String sig ;
+	////posli cas a datum
+	//if (sendDateTimeFlg)
+	//{
+	//	char pomstr[10];
+	//	if (++counter > 20)
+	//	{
+	//		counter = 0;
+	//		gsmModul.Init ();
+	//
+	//		COM.println ("gsm>" + sig + '<' + ok);
+	//		delay (10);
+	//	}
+	//	else
+	//	{
+	//		sendDateTimeFlg = false;
+	//		CtiTeploty ();
+	//		sprintf (pomstr, "%2u,%1u %2u,%1u", teploty_new[0] / 10, teploty_new[0] % 10, teploty_new[1] / 10, teploty_new[1] % 10);
+	//		dateTime.GetDateTime ();
+	//		if (dateTime.dateTimeStr.sec == 0)minutes = dateTime.GetMinutes ();
+	//		COMBLUE.println ("dt>" + dateTime.ToString () + '<' + pomstr);
+	//		delay (10);
+	//	}
+	//}
+	//
+	////komunikace prijem GSM
+	//if (COMGSM.available ())
+	//{
+	//	String gsm_string = COMGSM.readString ();
+	//	COM.println (gsm_string);
+	//	if (gsm_string.equals( strncmp(gsm_string,"+CMT",4)==0)
+	//	{
+	//		COM.println ("+CMT");
+	//		boolean isFound = false;
+	//		int start = gsm_string.indexOf ("+420");
+	//		String telnmb = gsm_string.substring (start+4, start + 13);
+	//		COM.println (telnmb);
+	//		char pom[10];//pomocna pro tel cislo
+	//		telnmb.toCharArray (pom,10);
+	//		COM.println (pom);
+	//		for (int i = 0; i < 3; i++)
+	//		{
+	//			if (strncmp (pom, gsmData.telNumber[i],9 )== 0)
+	//			{
+	//				callingNumber = i;
+	//				start = gsm_string.length() - 5;
+	//				String command = gsm_string.substring (start, start+3);
+	//				char pom2[4];//pomocna pro prikaz
+	//				command.toCharArray (pom2, 4);
+	//				COM.println (pom2);
+	//				ExecuteGsmCommad (pom2[0],pom2[2]);
+	//			}
+	//
+	//		}
+	//	//}
+	//	//COM.println();
+	//}
+	//
+	//////komunikace prijem zpravy
+	//if (COMBLUE.available ())
+	//{
+	//	int tout = 0;
+	//	char ii = 0;
+	//	Timer1.stop ();
+	//	char pom_buf[60];
+	//	char pomocna = 0;//test
+	//	while (1)
+	//	{
+	//		/*delay (1);
+	//		if (++tout > 1000)break;*/
+	//		while (COMBLUE.available ())
+	//		{
+	//			recChar = COMBLUE.read ();
+	//			rxBuffer[rxBufferIndex++] = (char)recChar;
+	//			if (recChar == '\n')
+	//			{
+	//				recMsg = true;
+	//
+	//				break;
+	//			}
+	//			
+	//		}
+	//		if (rxBufferIndex > 90)break;
+	//		if (recMsg)
+	//		{
+	//			boolean recError;
+	//			pomocna++;
+	//			recMsg = false;
+	//			COM.println (rxBufferIndex, 10);
+	//			memcpy (pom_buf, rxBuffer, rxBufferIndex - 1);
+	//			pom_buf[rxBufferIndex - 1] = 0;
+	//
+	//			COM.println (pom_buf);
+	//			if (pom_buf[0] == 'T')
+	//			{
+	//				RozdelString (pom_buf, '#');
+	//				dateTime.SetDateTime (pomTs);
+	//				rxBufferIndex = 0;
+	//				COMBLUE.println ("recTok");
+	//				break;
+	//			}
+//
+	//			else if (pom_buf[0] == 'D')
+	//			{
+	//				//COM.println ("rec2");
+	//				char c = pom_buf[3] - 0x30;
+	//				if (pom_buf[2] == 'I')//data vstupu
+	//				{
+	//					if (rxBufferIndex ==48)
+	//					{
+	//						memcpy (&inputs[c], &pom_buf[5], rxBufferIndex - 4);
+	//						inputs[c].tel[9] = '\0';
+	//						inputs[c].sms[20] = '\0';
+	//						recError = false;
+	//					}
+	//					else recError = true;
+//
+	//				}
+	//				else if(pom_buf[2] == 'O')//data vystupu
+	//				{
+	//					RozdelString (pom_buf, ':');
+	//					DecodeData (pom_buf, c, pom_buf[2]);
+	//					//COM.println ("rec x");
+	//				}
+//
+	//				else if (pom_buf[2] == 'G')//GSM data
+	//				{
+	//					memcpy (&gsmData, &pom_buf[3], rxBufferIndex - 4);
+	//					gsmData.telNumber[0][9] = '\0';
+	//					gsmData.telNumber[1][9] = '\0';
+	//					gsmData.telNumber[2][9] = '\0';
+	//				}
+//
+	//				if (rxBuffer[rxBufferIndex - 3] == 'E')
+	//				{
+	//					rxBufferIndex = 0;
+	//					if(recError)COMBLUE.println ("Err");
+	//					else
+	//					{
+	//						COMBLUE.println ("recDok");
+	//						//VypisPamet ();
+	//						eepromPtr = 0;
+	//						EEPROM.put (eepromPtr, inputs);
+	//						eepromPtr = sizeof (inputs);
+	//						EEPROM.put (eepromPtr, outputs);
+	//					}
+	//					break;
+	//				}
+	//				rxBufferIndex = 0;
+	//			}
+//
+//
+	//			else if (pom_buf[0] == 'M')//M = manual control
+	//			{
+	//				rxBufferIndex = 0;
+	//				//COM.println ("IO ctrl");
+	//				//if (pom_buf[2] == 'I')
+	//				//{
+	//				//	char st = pom_buf[6] - 0x30;
+	//				//	if (st == 1)maskIn |= 1 << st;
+//
+	//				//	else if (st == 0)maskIn &= ~(1 << st);
+	//				//}
+	//				//else
+	//				if (pom_buf[2] == 'O')
+	//				{
+	//					COM.println ("O ctrl");
+	//					char ox = pom_buf[4] - 0x30;
+	//					char st = pom_buf[6] - 0x30;
+	//					ChangeOutput (ox, st);
+	//				}
+	//				break;
+	//			}
+//
+	//		}
+//
+//
+	//	}
+	//	//eepromPtr = 0;
+	//	//EEPROM.put (eepromPtr, inputs);
+	//	//eepromPtr = sizeof (inputs);
+	//	//EEPROM.put (eepromPtr, outputs);
+	//	Timer1.start ();
+	//}
+
+	///***************************/
+if (digitalRead (inpNmbs[0]) == LOW)//je seply?
+{
+	delay (100);
+	if (digitalRead (inpNmbs[0]) == LOW)//je seply?
+	{
+		COM.println(gsmModul.Call("*22#"));
+
+	}
+}
+
+	///***************************/
+	////obsluha vstupu a vystupu
+	//for (int j = 0; j < 6; j++)
+	//{
+	//	//pro vystupy ovladane casem
+	//	if (outTimersFlg[j] == true)
+	//	{//pokud docasoval timer pro vystup proved akci
+	//		outputs[j].state ^= 1;//preklop stav na vystupu
+	//		outTimersFlg[j] = false;//vynuluj flag
+	//		if (outputs[j].IsNastCas)//pokud ma po nastavenem case zmenit stav
+	//		{
+	//			if (whichTime[j] == first)//prvni cas
+	//			{
+	//				ChangeOutput (j, outputs[j].state);//zapis na vystup
+	//				whichTime[j] = second;
+	//				outTimers[j] = outputs[j].controlTimes.timeOfPulse;
+	//			}
+	//			else if (whichTime[j] == second)//druhy cas
+	//			{
+	//				ChangeOutput (j, outputs[j].state);//zapis na vystup
+	//				whichTime[j] = first;
+	//				outTimers[j] = outputs[j].controlTimes.timeOfDelay;
+	//			}
+	//		}
+	//		else//zmen stav na trvalo
+	//		{
+	//			//swSerial.println ("tmrchng");
+	//			delay (10);
+	//			ChangeOutput (j, outputs[j].state);
+	//		}
+	//	}
+	//	//spinaci hodiny
+	//	if (outputs[j].IsUseSwitchClk == true)
+	//	{//
+	//		for (int k = 0; k < 4; k++)
+	//		{
+	//			if (outputs[j].minutespans[k].startTime == minutes && !outputs[j].blockSendOn)
+	//			{
+
+	//				outputs[j].blockSendOn = true;
+	//				outputs[j].blockSendOff = false;
+	//				ChangeOutput (j,  HIGH);
+
+	//			}
+
+	//			else if (outputs[j].minutespans[k].stopTime == minutes && !outputs[j].blockSendOff)
+	//			{
+	//				outputs[j].blockSendOn = false;
+	//				outputs[j].blockSendOff = true;
+	//				ChangeOutput (j, LOW);
+	//			}
+	//		}
+
+	//	}
+
+	//	//teploty
+	//	if (outputs[j].IsUseThermostat)
+	//	{
+	//		
+	//		if (outputs[j].ktere_cidlo == 1)
+	//		{
+	//			
+	//			if (teploty_new[0] >= outputs[j].Temperature )
+	//			{
+	//				
+	//				if (!outputs[j].blockSendOn)
+	//				{
+	//					COM.print (j, 10);
+	//				outputs[j].blockSendOn = true;
+	//				outputs[j].blockSendOff = false;
+	//				ChangeOutput (j, LOW);
+	//				}
+
+	//			}
+	//			else if (teploty_new[0] < outputs[j].Temperature - outputs[j].TempHysteresis && !outputs[j].blockSendOff)
+	//			{
+	//				ChangeOutput (j, HIGH);
+	//				outputs[j].blockSendOn = false;
+	//				outputs[j].blockSendOff = true;
+	//			}
+
+	//		}
+
+	//		else if (outputs[j].ktere_cidlo == 2)
+	//		{
+	//			if (teploty_new[1] >= outputs[j].Temperature && !outputs[j].blockSendOn)
+	//			{
+	//				ChangeOutput (j, LOW);
+	//				outputs[j].blockSendOn = true;
+	//				outputs[j].blockSendOff = false;
+	//			}
+	//			else if (teploty_new[1] < outputs[j].Temperature - outputs[j].TempHysteresis && !outputs[j].blockSendOff)
+	//			{
+	//				ChangeOutput (j,HIGH);
+	//				outputs[j].blockSendOn = false;
+	//				outputs[j].blockSendOff = true;
+	//			}
+
+	//		}
+
+	//	}
+	//}
+	//if (sendOutsFlg)
+	//{
+	//	sendOutsFlg = false;
+	//	swSerial.print ("out");
+	//	swSerial.print (outputs[0].state, 10);//posli zpravu
+	//	swSerial.print (outputs[1].state, 10);//posli zpravu
+	//	swSerial.print (outputs[2].state, 10);//posli zpravu
+	//	swSerial.print (outputs[3].state, 10);//posli zpravu
+	//	swSerial.print (outputs[4].state, 10);//posli zpravu
+	//	swSerial.println (outputs[5].state, 10);//posli zpravu
+	//	delay (100);
+	//}
+	///****************************************************************/
+	//	//kontrola stavu na vstupech
+	//for (int i = 0; i < 4; i++)
+	//{
+	//	if (digitalRead (inpNmbs[i]) == LOW)//je seply?
+	//	{
+	//		delay (10);//zakmit
+	//		unsigned char state;
+	//		if (inputs[i].blockSendOn == false)//posli hi stav vstupu pokud nebyl odeslan
+	//		{
+	//			inputs[i].blockSendOn = true;
+	//			inputs[i].blockSendOff = false;
+	//			inputs[i].state = 1;
+	//			COMBLUE.print ("in");
+	//			COMBLUE.print (inputs[0].state, 10);
+	//			COMBLUE.print (inputs[1].state, 10);
+	//			COMBLUE.print (inputs[2].state, 10);
+	//			COMBLUE.println (inputs[3].state, 10);//posli zpravu
+
+	//			delay (10);//pockat kvuli odeslani stavu vystupu
+	//			//swSerial.println (inputs[i].func_index, 1);
+	//			for (int j = 0; j < 6; j++)
+	//			{
+	//				switch (inputs[i].func_index - 0x30)
+	//				{
+	//				case 3:
+	//				case 0: state = HIGH; break;
+	//				case 1: state = LOW; break;
+	//				case 2: state = outputs[j].state ^ 1; break;
+	//				case 4: break;
+	//				}
+	//				//swSerial.println (state,1);
+	//				//pro sepnuti/vypnuti vystupu
+	//				if (inputs[i].func_index - 0x30 < 4)
+	//				{
+	//					if (inputs[i].outs[j] == '1')
+	//					{
+	//						if (outputs[j].state != state)
+	//						{
+	//							//COM1.println (inputs[i].outs[j]);
+	//							ChangeOutput (j,state);//jen pri zmene
+	//						}
+	//						outputs[j].state = state;//uloz novy stav
+
+	//						//COM.println (outNmbs[j]);
+	//					}
+	//				}
+	//				//pro spusteni casovani
+	//				if (inputs[i].func_index - 0x30 == 3)
+	//				{
+	//					//kdyz je vystupu nastavene ovladani casem a zaroven je prirazeny ctenemu vstupu
+	//					if (outputs[j].IsUseProgTmr&&inputs[i].outs[j] == '1')
+	//					{
+	//						COM.print (j);
+	//						COM.print ("_okx_");
+	//						if (outputs[j].IsNastCas)whichTime[j] = first;
+	//						outTimers[j] = outputs[j].controlTimes.timeOfDelay;
+	//						//COM.println (outTimers[j]);
+	//						outTimersFlg[j] = false;
+	//					}
+	//				}
+
+	//				//pro obsluhu GSM
+	//				if (inputs[i].func_index - 0x30 >= 4)
+	//				{
+	//					//sms
+	//					if (inputs[i].func_index - 0x30 == 4)
+	//					{
+	//						if (!inputs[i].isSendingSms)
+	//						{
+	//							casBlokovaniSms = 120;
+	//							currSendingSmsInput = i;
+	//							inputs[i].isSendingSms = true;
+	//							COM.println (inputs[i].tel);
+	//							COM.println (inputs[i].sms);
+	//							gsmModul.Sms (inputs[i].tel, inputs[i].sms);
+	//						}
+	//					}
+	//					//prozvonit
+	//					else if (inputs[i].func_index - 0x30 == 5)
+	//					{
+	//						if (!inputs[i].isCallingGsm)
+	//						{
+	//							COM.println (inputs[i].tel);
+	//							gsmModul.Call (inputs[i].tel);
+	//							casProzvaneni = 25;
+	//							inputs[i].isCallingGsm = true;
+	//							currCallingInput = i;
+	//						}
+
+	//					}
+	//					//sms + prozvonit
+	//					else if (inputs[i].func_index - 0x30 == 6)
+	//					{
+	//						if (!inputs[i].isSendingSms)
+	//						{
+	//							casBlokovaniSms = 120;
+	//							currSendingSmsInput = i;
+	//							inputs[i].isSendingSms = true;
+	//							COM.println (inputs[i].tel);
+	//							COM.println (inputs[i].sms);
+	//							gsmModul.Sms (inputs[i].tel, inputs[i].sms);
+	//						}
+	//						delay (300);
+	//						if (!inputs[i].isCallingGsm)
+	//						{
+	//							COM.println (inputs[i].tel);
+	//							gsmModul.Call (inputs[i].tel);
+	//							casProzvaneni = 25;
+	//							inputs[i].isCallingGsm = true;
+	//							currCallingInput = i;
+	//						}
+
+	//					}
+	//				}
+	//			}
+	//			//delay (500)
+	//		}
+
+	//		//zkontroluj co je nastavene pro vystup a proved operaci
+	//	}
+	//	//posli lo stav vstupu pokud nebyl odeslan
+	//	else if (inputs[i].blockSendOff == false)
+	//	{
+	//		inputs[i].state = 0;
+	//		COMBLUE.print ("in");
+	//		COMBLUE.print (inputs[0].state, 10);
+	//		COMBLUE.print (inputs[1].state, 10);
+	//		COMBLUE.print (inputs[2].state, 10);
+	//		COMBLUE.println (inputs[3].state, 10);//posli zpravu
+	//		inputs[i].blockSendOn = false;
+	//		inputs[i].blockSendOff = true;
+	//		delay (100);
+	//	}
+	//	//delay (500);
+	//}
+	//if (sendOutsFlg)
+	//{
+	//	sendOutsFlg = false;
+	//	COMBLUE.print ("out");
+	//	COMBLUE.print (outputs[0].state, 10);//posli zpravu
+	//	COMBLUE.print (outputs[1].state, 10);//posli zpravu
+	//	COMBLUE.print (outputs[2].state, 10);//posli zpravu
+	//	COMBLUE.print (outputs[3].state, 10);//posli zpravu
+	//	COMBLUE.print (outputs[4].state, 10);//posli zpravu
+	//	COMBLUE.println (outputs[5].state, 10);//posli zpravu
+	//	delay (100);
+	//}
+}
+
+//void ExecuteGsmCommad (char nmbOut,char outState)
+//{
+//	switch (nmbOut)
+//	{
+//	case '1': ChangeOutput (0, (outState == 'n') ? HIGH : LOW); break;
+//	case '2': ChangeOutput (1, (outState == 'n') ? HIGH : LOW); break;
+//	case '3': ChangeOutput (2, (outState == 'n') ? HIGH : LOW); break;
+//	case '4': ChangeOutput (3, (outState == 'n') ? HIGH : LOW); break;
+//	case '5': ChangeOutput (4, (outState == 'n') ? HIGH : LOW); break;
+//	case '6': ChangeOutput (5, (outState == 'n') ? HIGH : LOW); break;
+//	case '?': SendStatus (); break;
+//	}
+//}
+//
+////String GsmQuestion (char co)
+////{
+////	switch (co)
+////	{
+////	case 0: return gsmModul.Operator ();
+////	case 1: return gsmModul.Signal ();
+////	}
+////
+////	return "err";
+////}
+//
+//void SendStatus ()
+//{
+//	for (int i = 0; i < sizeof (rxBuffer); i++, rxBuffer[i] = 0);
+//	COM.println ("sms");
+//	//vystupy
+//	strncpy (rxBuffer, "re1 ",4);
+//	if (outputs[0].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "re2 ");
+//	if (outputs[1].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "out3 ");
+//	if (outputs[2].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "out4 ");
+//	if (outputs[3].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "out5 ");
+//	if (outputs[4].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "out6 ");
+//	if (outputs[5].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	//vstupy
+//	strcat (rxBuffer, "in1 ");
+//	if (inputs[0].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "in2 ");
+//	if (inputs[1].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "in3 ");
+//	if (inputs[2].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	strcat (rxBuffer, "in4 ");
+//	if (inputs[3].state == HIGH)strcat (rxBuffer, "zap\n");
+//	else strcat (rxBuffer, "vyp\n");
+//	//teploty
+//	char tepl[10];
+//	sprintf (tepl, "t1 = %2u,%u\n", teploty_new[0] / 10, teploty_new[0] % 10);
+//	strcat (rxBuffer, tepl);
+//	sprintf (tepl, "t2 = %2u,%u", teploty_new[1] / 10, teploty_new[1] % 10);
+//	strcat (rxBuffer, tepl);
+//	strcat (rxBuffer, "\0");
+//	gsmModul.Sms (gsmData.telNumber[callingNumber], rxBuffer);
+//	casBlokovaniSms = 15;
+//}
+//
+//void ChangeOutput (char out,  char state)//cislo vystupu,cislo pinu,stav
+//{
+//	outputs[out].state = state;
+//	digitalWrite (outNmbs[out], state);//zapis stav na vystup
+//	sendOutsFlg = true;
+//	//delay (100);
+//}
+//
+////void DecodeDataxx ()
+////{
+////	//pro casy
+////
+////
+////	char pom2[8];//pomocny string casy
+////	//indexy dvojtecek    
+////	int idxs[15];
+////	int idxPtr = 0;
+////#ifdef DEBUG
+////	COM1.println ("inputs");
+////#endif // DEBUG
+////	//inputs
+////	for (char i = 0; i < 4; i++)
+////	{
+////		idxPtr = 0;
+////		//najdi dvojtecky a uloz jejich indexy
+////		for (int j = divider[i]; j < divider[i + 1]; j++)
+////		{
+////			if (rxBuffer[j] == ':')
+////			{
+////				idxs[idxPtr] = j;
+////#ifdef DEBUG
+////				COM1.print ("-");
+////				COM1.print (idxs[idxPtr], 1);
+////#endif // DEBUG
+////				idxPtr++;
+////				nmbOfSubstr++;
+////			}
+////		}
+////		//COM1.println (idxPtr,1);
+////		//COM1.println (nmbOfSubstr, 1);
+////		inputs[i].func_index = rxBuffer[idxs[0] + 1] - 0x30;
+////#ifdef DEBUG
+////		COM1.print (">");
+////		COM1.print (inputs[i].func_index);
+////		COM1.print (">");
+////#endif // DEBUG
+////		for (char k = 0; k < 6; k++)
+////		{
+////			inputs[i].outs[k] = rxBuffer[k + idxs[1] + 1];
+////#ifdef DEBUG
+////			COM1.print (inputs[i].outs[k]);
+////			COM1.print ("  ");
+////#endif // DEBUG
+////		}
+////		memcpy (inputs[i].tel, &rxBuffer[idxs[2] + 1], 9);
+////		memcpy (inputs[i].sms, &rxBuffer[idxs[3] + 1], 20);
+////#ifdef DEBUG
+////		COM1.print (inputs[i].tel);
+////		COM1.print ("  ");
+////		COM1.print (inputs[i].sms);
+////		COM1.println ();
+////#endif // DEBUG
+////	}
+////#ifdef DEBUG
+////	COM1.println ("outputs");
+////#endif // DEBUG
+////
+////	////outputs
+////	char pomIndex;
+////	for (char i = 4; i < 10; i++)
+////	{
+////#ifdef DEBUG
+////		COM1.println ();
+////#endif // DEBUG	
+////		char idx2 = 0, idx3 = 0;
+////		idxPtr = 0;
+////		//najdi dvojtecky a uloz jejich indexy
+////		for (int j = divider[i]; j < divider[i + 1]; j++)
+////		{
+////			if (rxBuffer[j] == ':')
+////			{
+////				idxs[idxPtr] = j;
+////#ifdef DEBUG
+////				COM1.print ("-");
+////				COM1.print (idxs[idxPtr], 1);
+////#endif // DEBUG
+////				idxPtr++;
+////				nmbOfSubstr++;
+////			}
+////		}
+////
+////		//	//flagy
+////		outputs[pomIndex].IsTimeControl = rxBuffer[idxs[0] + 1] - 0x30;
+////		outputs[pomIndex].IsInputControl = rxBuffer[idxs[1] + 1] - 0x30;
+////		outputs[pomIndex].IsExtControl = rxBuffer[idxs[2] + 1] - 0x30;
+////		outputs[pomIndex].IsUseSwitchClk = rxBuffer[idxs[3] + 1] - 0x30;
+////		outputs[pomIndex].IsUseProgTmr = rxBuffer[idxs[4] + 1] - 0x30;
+////		//ProgTimer
+////		outputs[pomIndex].IsTrvale = rxBuffer[idxs[5] + 1] - 0x30;
+////		outputs[pomIndex].IsNastCas = rxBuffer[idxs[6] + 1] - 0x30;
+////		outputs[pomIndex].IsSwitchOn = rxBuffer[idxs[7] + 1] - 0x30;
+////		outputs[pomIndex].IsSwitchOff = rxBuffer[idxs[8] + 1] - 0x30;
+////		outputs[pomIndex].IsAnyChange = rxBuffer[idxs[9] + 1] - 0x30;
+////		//
+////
+////		//najde indexy pomlcek a procent
+////		for (int k = idxs[10]; k < idxs[12]; k++)
+////		{
+////			if (rxBuffer[k] == '%')
+////			{
+////				procenta[idx2] = k;
+////#ifdef DEBUG
+////				COM1.print ("=>");
+////				COM1.print (procenta[idx2]);
+////#endif // DEBUG
+////				idx2++;
+////			}
+////			else if (rxBuffer[k] == '-')
+////			{
+////				pomlcky[idx3] = k;
+////#ifdef DEBUG
+////				COM1.print ("<=");
+////				COM1.print (pomlcky[idx3]);
+////#endif // DEBUG
+////				idx3++;
+////			}
+////		}
+////#ifdef DEBUG
+////		COM1.println ();
+////		COM1.print (" >> ");
+////#endif // DEBUG
+////		//naplni pomocne substringy "pom_strgs"
+////		for (int m = 0; m < idx2 - 1; m++)
+////		{
+////			if (m == 1)continue;
+////			memcpy (pom_strgs[m], &rxBuffer[procenta[m] + 1], procenta[m + 1] - procenta[m]);
+////			pom_strgs[m][procenta[m + 1] - procenta[m] - 1] = 0;
+////#ifdef DEBUG
+////			COM1.print (pom_strgs[m]);
+////			COM1.print (" <> ");
+////#endif // DEBUG
+////
+////		}
+////		//controlTimes.timeOfDelay
+////		memcpy (pom2, &rxBuffer[procenta[0] + 1], pomlcky[0] - procenta[0] - 1);
+////		pom2[pomlcky[0] - procenta[0] - 1] = 0;
+////#ifdef DEBUG
+////		COM1.print (pom2);
+////		COM1.print (" <|> ");
+////#endif // DEBUG
+////		outputs[pomIndex].controlTimes.timeOfDelay = atol (pom2);
+////		//controlTimes.timeOfPulse
+////		memcpy (pom2, &rxBuffer[pomlcky[0] + 1], procenta[1] - pomlcky[0] - 1);
+////		pom2[procenta[1] - pomlcky[0] - 1] = 0;
+////#ifdef DEBUG
+////		COM1.print (pom2);
+////		COM1.print (" <|> ");
+////#endif // DEBUG		
+////		outputs[pomIndex].controlTimes.timeOfPulse = atol (pom2);
+////		//COM1.print("---"); COM1.println (idx2,1);
+////		for (int m = 0; m < (idx2 - 1) / 2; m++)
+////		{
+////			memcpy (pom2, &rxBuffer[procenta[2 + m] + 1], pomlcky[1 + m] - procenta[2 + m] - 1);
+////			pom2[pomlcky[1 + m] - procenta[2 + m] - 1] = 0;
+////			outputs[pomIndex].minutespans[m].startTime = atoi (pom2);
+////#ifdef DEBUG
+////			COM1.print (pom2);
+////			COM1.print (" }{ ");
+////			//COM1.println (pom2);
+////#endif // DEBUG	
+////			//minutespan.stopTime
+////			memcpy (pom2, &rxBuffer[pomlcky[1 + m] + 1], procenta[3 + m] - pomlcky[1 + m] - 1);
+////			pom2[procenta[3 + m] - pomlcky[1 + m] - 1] = 0;
+////			outputs[pomIndex].minutespans[m].stopTime = atoi (pom2);
+////#ifdef DEBUG
+////			COM1.print (pom2);
+////			COM1.print (" }{ ");
+////			//COM1.println (pom2);
+////#endif // DEBUG	
+////		}
+////		//minutespan.startTime
+////
+////#ifdef DEBUG
+////		//COM1.print (outputs[pomIndex].IsTimeControl);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsInputControl);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsExtControl);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsUseSwitchClk);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsUseProgTmr);
+////		//COM1.print (")(");
+////		//COM1.print (outputs[pomIndex].IsTrvale);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsNastCas);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsSwitchOn);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsSwitchOff);
+////		//COM1.print ("  ");
+////		//COM1.print (outputs[pomIndex].IsAnyChange);
+////		//COM1.println ();
+////		//casy
+////		//COM1.print ("ct->");
+////		//COM1.print (outputs[pomIndex].controlTimes.timeOfDelay, 1);
+////		//COM1.print ("-|-");
+////		//COM1.print (outputs[pomIndex].controlTimes.timeOfPulse, 1);
+////		//COM1.println ();
+////		////casy spinacky
+////		//COM1.print ("swclk->");
+////		//COM1.print (outputs[pomIndex].minutespans[0].startTime, 1);
+////		//COM1.print ("-|-");
+////		//COM1.print (outputs[pomIndex].minutespans[0].stopTime, 1);
+////		//COM1.print ("|-|");
+////		//COM1.print (outputs[pomIndex].minutespans[1].startTime, 1);
+////		//COM1.print ("-|-");
+////		//COM1.print (outputs[pomIndex].minutespans[1].stopTime, 1);
+////		//COM1.print ("|-|");
+////		//COM1.print (outputs[pomIndex].minutespans[2].startTime, 1);
+////		//COM1.print ("-|-");
+////		//COM1.print (outputs[pomIndex].minutespans[2].stopTime, 1);
+////		//COM1.print ("|-|");
+////		//COM1.print (outputs[pomIndex].minutespans[3].startTime, 1);
+////		//COM1.print ("-|-");
+////		//COM1.print (outputs[pomIndex].minutespans[3].stopTime, 1);
+////		//COM1.println ();
+////#endif // DEBUG
+////
+////		//	//eepromPtr = 0;
+////		//	//EEPROM.put (eepromPtr, inputs);
+////		//	//eepromPtr = sizeof (inputs);
+////		//	//EEPROM.put (eepromPtr, outputs);
+////		pomIndex++;
+////	}
+////
+////}
+//void DecodeData (char *str, char indx_i_o, char i_o)
+//{
+//	//pro cas
+//
+//	char pom2[8];//pomocny string casy
+//				 //indexy dvojtecek    
+//	int idxs[15];
+//	int idxPtr = 0;
+//
+//	//inputs
+//	idxPtr = 0;
+//
+//	////outputs
+//
+//	char idx2 = 0, idx3 = 0;
+//	idxPtr = 0;
+//	//COM.println ("decode");
+//	//flagy
+//	outputs[indx_i_o].IsTimeControl = str[divider[0] + 1] - 0x30;
+//	outputs[indx_i_o].IsInputControl = str[divider[1] + 1] - 0x30;
+//	outputs[indx_i_o].IsExtControl = str[divider[2] + 1] - 0x30;
+//	outputs[indx_i_o].IsUseSwitchClk = str[divider[3] + 1] - 0x30;
+//	outputs[indx_i_o].IsUseProgTmr = str[divider[4] + 1] - 0x30;
+//	//Thermostat
+//	outputs[indx_i_o].IsUseThermostat = str[divider[5] + 1] - 0x30;
+//	memcpy (&pom2[0], &str[divider[6] + 1], divider[7] - divider[6]);
+//	outputs[indx_i_o].Temperature = atoi (&pom2[0]);
+//	//COM.print (outputs[indx_i_o].Temperature, 10); COM.print (",");
+//
+//	memcpy (&pom2[0], &str[divider[7] + 1], divider[8] - divider[7]);
+//	outputs[indx_i_o].TempHysteresis = atoi (&pom2[0]);
+//	//COM.print (outputs[indx_i_o].TempHysteresis, 10); COM.print (",");
+//
+//	memcpy (&pom2[0], &str[divider[8] + 1], divider[9] - divider[8]);
+//	outputs[indx_i_o].TempAlarmHi = atoi (&pom2[0]);
+//	//COM.print (outputs[indx_i_o].TempAlarmHi, 10); COM.print (",");
+//
+//	memcpy (&pom2[0], &str[divider[9] + 1], divider[10] - divider[9]);
+//	outputs[indx_i_o].TempAlarmLo = atoi (&pom2[0]);
+//	//COM.print (outputs[indx_i_o].TempAlarmLo, 10); COM.print (",");
+//
+//	outputs[indx_i_o].IsAlarmHi = str[divider[10] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsAlarmHi, 10); COM.print (",");
+//
+//	outputs[indx_i_o].IsAlarmLo = str[divider[11] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsAlarmLo, 10); COM.print (",");
+//
+//	outputs[indx_i_o].ktere_cidlo = str[divider[12] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].ktere_cidlo, 10); COM.print (",");
+//	//ProgTimer
+//	outputs[indx_i_o].IsTrvale = str[divider[13] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsTrvale, 10); COM.print (",");
+//
+//	outputs[indx_i_o].IsNastCas = str[divider[14] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsNastCas, 10); COM.print (",");
+//
+//	outputs[indx_i_o].IsSwitchOn = str[divider[15] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsSwitchOn, 10); COM.print (",");
+//	outputs[indx_i_o].IsSwitchOff = str[divider[16] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsSwitchOff, 10); COM.print (",");
+//	outputs[indx_i_o].IsAnyChange = str[divider[17] + 1] - 0x30;
+//	//COM.print (outputs[indx_i_o].IsAnyChange, 10); COM.print (",");
+//	//
+//
+//	//najde indexy pomlcek a procent
+////	for (int k = divider[18]; k < divider[20]; k++)
+////	{
+////		if (str[k] == '%')
+////		{
+////			procenta[idx2] = k;
+////#ifdef DEBUG
+////			COM.print (" %");
+////			COM.print (procenta[idx2],10);
+////#endif // DEBUG
+////			idx2++;
+////		}
+////	   if (str[k] == '-')
+////		{
+////			pomlcky[idx3] = k;
+////#ifdef DEBUG
+////			COM.print (" -");
+////			COM.print (pomlcky[idx3],10);
+////#endif // DEBUG
+////			idx3++;
+////		}
+////	}
+//#ifdef DEBUG
+//	//COM.println ();
+//	//COM.print (" >> ");
+//#endif // DEBUG
+//	//naplni pomocne substringy "pom_strgs"
+////	for (int m = 0; m < idx2 - 1; m++)
+////	{
+////		if (m == 1)continue;
+////		memcpy (pom_strgs[m], &str[procenta[m] + 1], procenta[m + 1] - procenta[m]);
+////		pom_strgs[m][procenta[m + 1] - procenta[m] - 1] = 0;
+////#ifdef DEBUG
+////		COM.print (pom_strgs[m]);
+////		COM.print (" <> ");
+////#endif // DEBUG
+////
+////	}
+//
+//	//controlTimes.timeOfDelay
+//	memcpy (pom2, &str[divider[18] + 1], divider[19] - divider[18] - 1);
+//	pom2[divider[19] - divider[18] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG
+//	outputs[indx_i_o].controlTimes.timeOfDelay = atol (pom2);
+//
+//	//controlTimes.timeOfPulse
+//	memcpy (pom2, &str[divider[19] + 1], divider[20] - divider[19] - 1);
+//	pom2[divider[20] - divider[19] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].controlTimes.timeOfPulse = atol (pom2);
+//	//minutespans 0
+//	//controlTimes.minutespans[0].startTime
+//	memcpy (pom2, &str[divider[20] + 1], divider[21] - divider[20] - 1);
+//	pom2[divider[21] - divider[20] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[0].startTime = atol (pom2);
+//
+//	//controlTimes.minutespans[0].stopTime
+//	memcpy (pom2, &str[divider[21] + 1], divider[22] - divider[21] - 1);
+//	pom2[divider[22] - divider[21] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[0].stopTime = atol (pom2);
+//
+//	//minutespans 1
+//	//controlTimes.minutespans[1].startTime
+//	memcpy (pom2, &str[divider[22] + 1], divider[23] - divider[22] - 1);
+//	pom2[divider[23] - divider[22] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[1].startTime = atol (pom2);
+//
+//	//controlTimes.minutespans[1].stopTime
+//	memcpy (pom2, &str[divider[23] + 1], divider[24] - divider[23] - 1);
+//	pom2[divider[24] - divider[23] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[1].stopTime = atol (pom2);
+//
+//
+//	//minutespans 2
+//	//controlTimes.minutespans[2].startTime
+//	memcpy (pom2, &str[divider[24] + 1], divider[25] - divider[24] - 1);
+//	pom2[divider[25] - divider[24] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[2].startTime = atol (pom2);
+//
+//	//controlTimes.minutespans[2].stopTime
+//	memcpy (pom2, &str[divider[25] + 1], divider[26] - divider[25] - 1);
+//	pom2[divider[26] - divider[25] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[2].stopTime = atol (pom2);
+//
+//	//minutespans 3
+//	//controlTimes.minutespans[3].startTime
+//	memcpy (pom2, &str[divider[26] + 1], divider[27] - divider[26] - 1);
+//	pom2[divider[27] - divider[26] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[3].startTime = atol (pom2);
+//
+//	//controlTimes.minutespans[3].stopTime
+//	memcpy (pom2, &str[divider[27] + 1], divider[28] - divider[27] - 1);
+//	pom2[divider[28] - divider[27] - 1] = 0;
+//#ifdef DEBUG
+//	COM.print (pom2);
+//	COM.print (" <|> ");
+//#endif // DEBUG		
+//	outputs[indx_i_o].minutespans[3].stopTime = atol (pom2);
+//
+//	//COM.print ("---"); COM.println (idx3, 1);
+////	for (int m = 0; m < (idx3 - 1); m++)
+////	{
+////		memcpy (pom2, &str[procenta[2 + m] + 1], pomlcky[1 + m] - procenta[2 + m] - 1);
+////		pom2[pomlcky[1 + m] - procenta[2 + m] - 1] = 0;
+////		outputs[indx_i_o].minutespans[m].startTime = atoi (pom2);
+////#ifdef DEBUG
+////	/*	COM.print (pom2);
+////		COM.print (" }{ ");*/
+////		//COM1.println (pom2);
+////#endif // DEBUG	
+////			//minutespan.stopTime
+////		memcpy (pom2, &str[pomlcky[1 + m] + 1], procenta[3 + m] - pomlcky[1 + m] - 1);
+////		pom2[procenta[3 + m] - pomlcky[1 + m] - 1] = 0;
+////		outputs[indx_i_o].minutespans[m].stopTime = atoi (pom2);
+////#ifdef DEBUG
+////	/*	COM.print (pom2);
+////		COM.println (" }");*/
+////		//COM1.println ();
+////#endif // DEBUG	
+////	}
+//	//minutespan.startTime
+//
+//#ifdef DEBUG
+//	COM.print (outputs[indx_i_o].IsTimeControl);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsInputControl);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsExtControl);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsUseSwitchClk);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsUseProgTmr);
+//	COM.print (")(");
+//	COM.print (outputs[indx_i_o].IsTrvale);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsNastCas);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsSwitchOn);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsSwitchOff);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].IsAnyChange);
+//	COM.println ();
+//	//teploty
+//	COM.print (outputs[indx_i_o].IsUseThermostat);
+//	COM.print ("-->");
+//	COM.print (outputs[indx_i_o].ktere_cidlo, 10);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].Temperature);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].TempHysteresis, 10);
+//	COM.print ("  ");
+//	COM.print (outputs[indx_i_o].TempAlarmHi);
+//	COM.print ("  ");
+//	COM.println (outputs[indx_i_o].TempAlarmLo);
+//	//casy
+//	COM.print ("ct->");
+//	COM.print (outputs[indx_i_o].controlTimes.timeOfDelay, 1);
+//	COM.print ("-|-");
+//	COM.print (outputs[indx_i_o].controlTimes.timeOfPulse, 1);
+//	COM.println ();
+//	//casy spinacky
+//	COM.print ("swclk->");
+//	COM.print (outputs[indx_i_o].minutespans[0].startTime, 1);
+//	COM.print ("-|-");
+//	COM.print (outputs[indx_i_o].minutespans[0].stopTime, 1);
+//	COM.print ("|-|");
+//	COM.print (outputs[indx_i_o].minutespans[1].startTime, 1);
+//	COM.print ("-|-");
+//	COM.print (outputs[indx_i_o].minutespans[1].stopTime, 1);
+//	COM.print ("|-|");
+//	COM.print (outputs[indx_i_o].minutespans[2].startTime, 1);
+//	COM.print ("-|-");
+//	COM.print (outputs[indx_i_o].minutespans[2].stopTime, 1);
+//	COM.print ("|-|");
+//	COM.print (outputs[indx_i_o].minutespans[3].startTime, 1);
+//	COM.print ("-|-");
+//	COM.print (outputs[indx_i_o].minutespans[3].stopTime, 1);
+//	COM.println ();
+//#endif // DEBUG
+//
+//
+//
+//	//pomIndex++;
+//}
+//
+//
+//
+//void RozdelString (char* src, char c)
+//{
+//	int i = 0, idxs[14], idx = 0;
+//	nmbOfSubstr = 0;
+//	while (*src)
+//	{
+//		if (*src == c)
+//		{
+//			divider[idx] = i;
+//#ifdef DEBUG
+//			COM.print ("-");//debug
+//			COM.print (divider[idx], 1);//debug
+//#endif // DEBUG
+//			idx++;
+//			nmbOfSubstr++;
+//		}
+//		i++;
+//		src++;
+//		}
+//	if (rxBuffer[0] == 'T')
+//	{
+//		for (char j = 0; j < nmbOfSubstr - 1; j++)
+//		{
+//			memcpy (rozdelenyString[j], &rxBuffer[divider[j] + 1], divider[j + 1] - divider[j] - 1);
+//			rozdelenyString[j][divider[i + 1] - divider[i] - 1] = 0;
+//
+//#ifdef DEBUG
+//			COM.print (rozdelenyString[j]);
+//			COM.print (" <> ");
+//#endif // DEBUG
+//
+//		}
+//		pomTs.mday = atoi (rozdelenyString[0]);
+//		pomTs.mon = atoi (rozdelenyString[1]);
+//		pomTs.year = atoi (rozdelenyString[2]);
+//		pomTs.hour = atoi (rozdelenyString[3]);
+//		pomTs.min = atoi (rozdelenyString[4]);
+//		pomTs.sec = atoi (rozdelenyString[5]);
+//		}
+//#ifdef DEBUG
+//	COM1.println ();//debug
+//	COM1.println (nmbOfSubstr, 1);//debug
+//	char pomBuf[70];//debug
+//
+//	for (int i = 0; i < nmbOfSubstr - 1; i++)//debug
+//	{
+//		memcpy (pomBuf, &rxBuffer[divider[i] + 1], divider[i + 1] - divider[i] - 1);//debug
+//		pomBuf[divider[i + 1] - divider[i] - 1] = 0;
+//		COM1.println (pomBuf);//debug
+//	}//debug
+//#endif // DEBUG
+//}
+//
+//void TimerTick ()
+//{
+//	sendDateTimeFlg = true;
+//
+//	for (int i = 0; i < 6; i++)
+//	{
+//		if (outTimers[i] > 0)
+//		{
+//			if (--outTimers[i] == 0)
+//			{
+//				outTimersFlg[i] = true;
+//				COMBLUE.print (i);
+//				COMBLUE.println ("flg");
+//			}
+//			else
+//			{
+//				COMBLUE.print (i);
+//				COMBLUE.print ("tmr-");
+//				COMBLUE.print (outTimers[i]);
+//				COMBLUE.println ('<');
+//			}
+//
+//			delay (100);
+//		}
+//	}
+//	if (casProzvaneni)
+//	{
+//		casProzvaneni--;
+//
+//		if (casProzvaneni < 1)
+//		{
+//			gsmModul.HangOut ();
+//			inputs[currCallingInput].isCallingGsm = false;
+//		}
+//		else
+//		{
+//			COM.println (casProzvaneni);
+//		}
+//	}
+//
+//	if (casBlokovaniSms)
+//	{
+//		COM.println (casBlokovaniSms);
+//		if (--casBlokovaniSms == 0)inputs[currSendingSmsInput].isSendingSms = false;
+//	}
+//}
+//
+//void SetDateTime ()
+//{
+//	//dateTime.
+//}
+//
+//void GetDateTime ()
+//{
+//
+//}
+//
+//void CtiTeploty ()
+//{
+//	sensors.requestTemperatures (); // Send the command to get temperatures
+//	for (int i = 0; i < 2; i++)//numberOfDevices
+//	{
+//
+//		// Search the wire for address
+//		if (sensors.getAddress (tempDeviceAddress, i))
+//		{
+//			//Serial.print("OK");Serial.println(i);
+//			teploty_new[i] = (int)(sensors.getTempC (tempDeviceAddress) * 10); //sensors.getTempCByIndex(i);
+//			//COM.println (teploty_new[i]);
+//		}
+//
+//		if (teploty_old[i] != teploty_new[i])
+//		{
+//			teploty_old[i] = teploty_new[i];
+//		}
+//
+//	}
+//}
+//
+//void VypisPamet ()
+//{
+//	char buf[21];
+//	for (int i = 0; i < 4; i++)
+//	{
+//		COM.print ("f");
+//		COM.print (i);
+//		COM.print ("-");
+//		COM.print (inputs[i].func_index);
+//		COM.print ("-outs");
+//		COM.print (inputs[i].outs[0]);
+//		COM.print (inputs[i].outs[1]);
+//		COM.print (inputs[i].outs[2]);
+//		COM.print (inputs[i].outs[3]);
+//		COM.print (inputs[i].outs[4]);
+//		COM.print (inputs[i].outs[5]);
+//		COM.print ("-nmb");
+//		COM.println (inputs[i].nmb, 10);
+//		//sprintf (buf, "%s", inputs[i].tel);
+//		//COM.print ("tel-");
+//		//COM.println (buf);
+//		//sprintf (buf, "%s", inputs[i].sms);
+//		//COM.print ("sms-");
+//		//COM.println (buf);
+//	}
+//	    COM.println ();
+//	for (int j = 0; j < 6; j++)
+//	{
+//		COM.print (" tc");
+//		COM.print (outputs[j].IsTimeControl , 10);
+//		COM.print (" ic");
+//		COM.print (outputs[j].IsInputControl, 10);
+//		COM.print (" ec");
+//		COM.print (outputs[j].IsExtControl, 10);
+//		COM.print (" sc");
+//		COM.print (outputs[j].IsUseSwitchClk, 10);
+//		COM.print (" pt");
+//		COM.print (outputs[j].IsUseProgTmr, 10);
+//		COM.print (" th");
+//		COM.print (outputs[j].IsUseThermostat, 10);
+//		COM.print (" T");
+//		COM.print (outputs[j].Temperature, 10);
+//		COM.print (" H");
+//		COM.print (outputs[j].TempHysteresis, 10);
+//		COM.print (" ah");
+//		COM.print (outputs[j].TempAlarmHi, 10);
+//		COM.print (" al");
+//		COM.print (outputs[j].TempAlarmLo, 10);
+//		COM.print (" ci");
+//		COM.print (outputs[j].ktere_cidlo, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].IsTrvale, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].IsNastCas, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].IsSwitchOn, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].IsSwitchOff, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].IsAnyChange, 10);
+//		COM.println ();
+//		COM.print (" msp");
+//		COM.print (outputs[j].minutespans[0].startTime, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].minutespans[0].stopTime, 10);
+//		COM.print ("_");
+//		COM.print (outputs[j].minutespans[1].startTime, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].minutespans[1].stopTime, 10);
+//		COM.print ("_");
+//		COM.print (outputs[j].minutespans[2].startTime, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].minutespans[2].stopTime, 10);
+//		COM.print ("_");
+//		COM.print (outputs[j].minutespans[3].startTime, 10);
+//		COM.print ("-");
+//		COM.print (outputs[j].minutespans[3].stopTime, 10);
+//		COM.print (" ctm");
+//		COM.print (outputs[j].controlTimes.timeOfDelay, 10);
+//		COM.print ("_");
+//		COM.print (outputs[j].controlTimes.timeOfPulse, 10);
+//		COM.print (" st");
+//		COM.print (outputs[j].state, 10);
+//		COM.print (" nmb");
+//		COM.print (outputs[j].nmb, 10);
+//		COM.println ();
+//
+//	}
+//
+//	COM.println ("gsm");
+//	COM.println (gsmData.isEnabled);
+//	COM.println (gsmData.telNumber[0]);
+//	COM.println (gsmData.telNumber[1]);
+//	COM.println (gsmData.telNumber[2]);
+//
+//}

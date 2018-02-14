@@ -24,7 +24,7 @@ public:
 	DateTime();
 	~DateTime();
 	void Init();
-	void SetDateTime(String dtstring[]);
+	void SetDateTime(ts ts/*char* dtstring[7][7]*/);
 	void SetDate(uint8_t dd, uint8_t mm, uint16_t yyyy);
 	void SetTime(uint8_t hh, uint8_t mm, uint8_t ss);
 	void GetDateTime();

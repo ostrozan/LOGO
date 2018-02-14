@@ -18,10 +18,11 @@ void DateTime::Init()
 	DS3231_init(DS3231_INTCN);
 }
 
-void DateTime::SetDateTime(String dtstring[])
+void DateTime::SetDateTime(ts ts/*char* dtstring[7][7]*/)
 {
-	SetDate (dtstring[0].toInt (), dtstring[1].toInt (), dtstring[2].toInt ());
-	SetTime (dtstring[3].toInt (), dtstring[4].toInt (), dtstring[5].toInt ());
+	
+	SetDate (ts.mday, ts.mon, ts.year);
+	SetTime (ts.hour, ts.min, ts.sec);
 }
 
 void DateTime::SetDate(uint8_t dd, uint8_t mm, uint16_t yyyy )
