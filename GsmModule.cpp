@@ -31,7 +31,7 @@ bool GsmModule::Setup ()
 bool GsmModule::Call(String number)
 {
 	COMGSM.print("ATD " + number + ";\r\n");
-	return GsmAck("OK");
+	//return GsmAck("OK");
 }
 
 bool GsmModule::Sms(String number, String message)
@@ -46,7 +46,7 @@ bool GsmModule::Sms(String number, String message)
 	COMGSM.print((char)26);//ctrl Z
 	//Serial.println("sms " + rx_buffer);//test
 	//expect CMGS:xxx   , where xxx is a number,for the sending sms.
-	return GsmAck("CMGS");	
+	//return GsmAck("CMGS");	
 }
 
 bool GsmModule::Sms (String number, char* message)
@@ -68,7 +68,7 @@ bool GsmModule::Sms (String number, char* message)
 bool GsmModule::HangOut()
 {
 	COMGSM.print("ATH\r\n");
-	return GsmAck ("OK");
+	//return GsmAck ("OK");
 }
 
 String GsmModule::Signal()
@@ -104,7 +104,7 @@ String GsmModule::readSerial()
 		delay(10);
 		timeout++;
 	}
-	//Serial.println (timeout, 10);
+	Serial.println (timeout, 10);
 	if (COMGSM.available()) 
 	{
 		return COMGSM.readString (); 

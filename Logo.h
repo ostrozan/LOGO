@@ -2,14 +2,14 @@
 #ifndef _LOGO_h
 #define _LOGO_h
 #include <TimerOne.h>
-#include <SPI.h>
+//#include <SPI.h>
 #include "GsmModule.h"
 #include "LogoBoard.h"
 #include "DateTime.h"
 //#include <AT24CX.h>
 #include "EEPROM.h"
 #include <DallasTemperature.h> 
-#include <OneWire.h>
+//#include <OneWire.h>
 //#define DEBUG
 //in1   A2
 //in2   A3
@@ -31,7 +31,7 @@
 
 #pragma region makra
 
-#define CONTROLCOMBLUE
+//#define CONTROLCOMBLUE
 #ifdef CONTROLCOMBLUE// opro komunikaci s programem pouzit bluetooth
 #define COMCONTROL swSerial
 #define COMDEBUG Serial
@@ -64,6 +64,7 @@ typedef struct In
 	boolean blockSendOff;
 	boolean isCallingGsm;//priznak ze prozvani
 	boolean isSendingSms;//priznak ze poslal sms
+	boolean isWaitingSms;//priznak ze ceka sms na odeslani po prozvoneni
 }In;
 
 typedef struct
@@ -110,8 +111,11 @@ typedef struct Out
 typedef struct
 {
     boolean isEnabled;
-	char telNumber[3][10];
-
+	boolean isResponse;
+	char telNumber[10];
+	char outNmb;//cislo vystupu ovladaneho externe prozvonenim
+	boolean isRinging;
+	boolean isActivated;
 }GsmData;
 
 GsmData gsmData;
@@ -133,7 +137,7 @@ enumFlag whichTime[6];
 boolean outTimersFlg[6];
 boolean recMsg = false;
 
-
+String gsmSignal ="0";
 int rxBufferIndex;
 int recChar;
 boolean sendDateTimeFlg;
@@ -150,6 +154,7 @@ char maskIn;
 //pro gsm
 char casProzvaneni;//jak dlouho bude prozvanet
 int casBlokovaniSms;
+char casZpozdeniSms;//pri prozvoneni+ sms nutno pockat
 char currCallingInput;//ktery vstup zrovna prozvani
 char currSendingSmsInput;//ktery vstup zrovna poslal sms
 char callingNumber;//index volajiciho cisla ze seznamu

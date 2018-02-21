@@ -26,6 +26,7 @@ public:
 	String Signal();
 	String Operator();
 
+
 private:
 	int timeout;
 	String rx_buffer;
