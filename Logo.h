@@ -61,8 +61,8 @@
 #define COMDEBUG Serial
 
 #else // opro komunikaci s programem pouzit usb konektor
-#define COMCONTROL Serial//
-#define COMDEBUG swSerial
+#define USBCONTROL Serial//
+#define BT_CONTROL swSerial
 #define COMGSM Serial1
 
 #endif // CONTROLCOMBLUE
@@ -163,6 +163,8 @@ typedef enum { empty, first, second }enumFlag;
 #pragma endregion
 
 #pragma region promenne
+
+boolean isBTcontrol;
 char rxBuffer[100];
 char rozdelenyString[7][7];
 char divider[30];

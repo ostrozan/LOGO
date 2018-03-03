@@ -16,7 +16,7 @@ DallasTemperature sensors (&oneWire);
 #pragma endregion
 void setup ()
 {
-
+	pinMode (A1, INPUT_PULLUP);
 	pinMode (inpNmbs[0], INPUT_PULLUP);
 	pinMode (inpNmbs[1], INPUT_PULLUP);
 	pinMode (inpNmbs[2], INPUT_PULLUP);
@@ -28,12 +28,12 @@ void setup ()
 	pinMode (outNmbs[4], OUTPUT);
 	pinMode (outNmbs[5], OUTPUT);
 
-	COMCONTROL.begin (38400);
-	while (!COMCONTROL);
+	USBCONTROL.begin (38400);
+	while (!USBCONTROL);
 	//delay (1000);
-	COMDEBUG.begin (38400);
+	BT_CONTROL.begin (38400);
 	//delay (1000);
-	while (!COMDEBUG);
+	while (!BT_CONTROL);
 	COMGSM.begin (9600);
 	//delay (1000);
 	while (!COMGSM);
@@ -44,7 +44,7 @@ void setup ()
 	eepromPtr = sizeof (outputs);
 	EEPROM.get (eepromPtr, gsmData);
 	int ii = sizeof (inputs) + sizeof (outputs) + sizeof (gsmData);
-	COMDEBUG.println (ii, 10);
+	
 	//dallas
 	// Start up the library
 	sensors.begin ();
@@ -82,6 +82,11 @@ void setup ()
 		//outputs[i].IsUseThermostat = 0;
 
 	}
+	if (digitalRead (A1) == LOW)
+	{
+		isBTcontrol = true;
+	}
+	Debug (String (ii, 10));
 	casProzvaneni = 0;
 	gsmModul.Init ();
 	gsmModul.Signal ();
@@ -101,13 +106,18 @@ void loop ()
 	//komunikace prijem GSM
 	if (gsmData.isEnabled && COMGSM.available ()) GsmReceive ();
 	////komunikace prijem zpravy
-	if (COMCONTROL.available ())
+	if (!isBTcontrol && USBCONTROL.available ())
 	{
 		//COMDEBUG.println ("start");
 		ComControlReceive ();
 		//COMDEBUG.println ("stop");
 	}
-
+	else 	if (isBTcontrol && BT_CONTROL.available ())
+	{
+		//COMDEBUG.println ("start");
+		ComControlReceive ();
+		//COMDEBUG.println ("stop");
+	}
 
 	//obsluha vstupu a vystupu
 	ObsluhaVystupu ();
@@ -124,23 +134,23 @@ void loop ()
 void SendOuts ()
 {
 	sendOutsFlg = false;
-	COMCONTROL.print ("out");
-	COMCONTROL.print (outputs[0].state, 10);//posli zpravu
-	COMCONTROL.print (outputs[1].state, 10);//posli zpravu
-	COMCONTROL.print (outputs[2].state, 10);//posli zpravu
-	COMCONTROL.print (outputs[3].state, 10);//posli zpravu
-	COMCONTROL.print (outputs[4].state, 10);//posli zpravu
-	COMCONTROL.println (outputs[5].state, 10);//posli zpravu
+	Com ("out");
+	Com (String(outputs[0].state, 10));//posli zpravu
+	Com (String (outputs[1].state, 10));//posli zpravu
+	Com (String (outputs[2].state, 10));//posli zpravu
+	Com (String (outputs[3].state, 10));//posli zpravu
+	Com (String (outputs[4].state, 10));//posli zpravu
+	Com(String (outputs[5].state, 10)+"\n");//posli zpravu
 	delay (100);
 }
 
 void SendIns ()
 {
-	COMCONTROL.print ("in");
-	COMCONTROL.print (inputs[0].state, 10);
-	COMCONTROL.print (inputs[1].state, 10);
-	COMCONTROL.print (inputs[2].state, 10);
-	COMCONTROL.println (inputs[3].state, 10);
+	Com ("in");
+	Com (String (inputs[0].state, 10));
+	Com (String (inputs[1].state, 10));
+	Com (String (inputs[2].state, 10));
+	Com (String (inputs[3].state, 10)+"\n");
 }
 
 void ExecuteGsmCommad (char nmbOut, char outState)
@@ -241,7 +251,7 @@ void ClearEventList ()
 
 void VypisPametUdalosti ()
 {
-COMCONTROL.print ("event");
+Com ("event");
 	signed char ptr;	//ukazatel v bufferu 50ti udalosti
 	EEPROM.get (EE_EVENT_POINTER, ptr);//nacteni hodnoty z eeprom
 	//COMDEBUG.print (ptr,10);
@@ -261,7 +271,7 @@ COMCONTROL.print ("event");
 		if (event.yy != 0xFF)
 		{
 		sprintf (pom_buf, ">%u %u %u %u %02u %02u %04X", event.yy, event.mnt, event.day, event.hr, event.min, event.ss, event.evnt);
-		COMCONTROL.print (pom_buf);
+		Com (pom_buf);
 		}
 
 		ptr--;
@@ -278,11 +288,11 @@ COMCONTROL.print ("event");
 		{
 			//char pom_buf[17];
 			sprintf (pom_buf, ">%u %u %u %u %02u %02u %04X", event.yy, event.mnt, event.day, event.hr, event.min, event.ss, event.evnt);
-			COMCONTROL.print (pom_buf);
+			Com (pom_buf);
 		}
 		ptr--;
 	} while (ptr > pom_ptr);
-	COMCONTROL.println (">");
+	Com(">\n");
 
 	
 }
@@ -293,8 +303,8 @@ void ChangeOutput (char out, char state,int ev)//cislo vystupu,cislo pinu,stav
 	digitalWrite (outNmbs[out], state);//zapis stav na vystup
 	SaveEvent (ev, out);
 	sendOutsFlg = true;
-	COMDEBUG.println (ev, 16);
-	COMDEBUG.println (out,10);
+	Debug(String(ev, 16));
+	Debug (String(out,10));
 	//delay (100);
 }
 
@@ -455,7 +465,7 @@ void TimerTick ()
 		if (casProzvaneni <= 1)
 		{
 			casProzvaneni = 0;
-			COMDEBUG.println ("ath");
+			Debug("ath\n");
 
 			gsmModul.HangOut ();
 			inputs[currCallingInput].isCallingGsm = false;
@@ -489,11 +499,11 @@ void TimerTick ()
 			if (--outTimers[i] == 0)
 			{
 				outTimersFlg[i] = true;
-				COMCONTROL.println (i + "flg");
+				Com (i + "flg\n");
 			}
 			else
 			{
-				COMCONTROL.println (String (i) + "tmr-" + String (outTimers[i]) + '<');
+				Com(String (i) + "tmr-" + String (outTimers[i]) + '<');
 			}
 
 			delay (100);
@@ -525,7 +535,7 @@ void CtiTeploty ()
 
 	}
 	unsigned long cas = millis () - time;
-	COMDEBUG.println (cas, 10);
+	Debug (String(cas, 10));
 }
 
 //void VypisPamet ()
@@ -641,7 +651,7 @@ void GsmReceive ()
 		gsm_string = COMGSM.readString ();
 	}
 
-	COMDEBUG.println (gsm_string);
+	Debug(gsm_string + "\n");
 	start = gsm_string.indexOf ("SQ:", 5);
 	if ( start != -1)
 	{
@@ -667,11 +677,11 @@ void GsmReceive ()
 
 	if (gsm_string.indexOf ("CARR") != -1 /*&& gsmData.isRinging*/)//no carrier
 	{
-		COMDEBUG.println ("nocarr");
+		Debug ("nocarr\n");
 		gsmData.isRinging = false;
 		gsmData.isActivated = false;
-		COMDEBUG.println (gsmData.isFound);
-		COMDEBUG.println (gsmData.isResponse);
+		Debug(String(gsmData.isFound));
+		Debug (String (gsmData.isResponse));
 		if (gsmData.isFound && gsmData.isResponse)
 		{
 			gsmData.isFound = false;
@@ -684,7 +694,7 @@ void GsmReceive ()
 
    if (gsmData.isRinging && !gsmData.isActivated && strncmp (pom, gsmData.telNumber, 9) == 0)
 	{
-		COMDEBUG.println ("ring");
+		Debug ("ring\n");
 		//COMDEBUG.println (gsmData.outNmb,2);
 		gsmData.isFound = true;
 		gsmData.isActivated = true;
@@ -704,12 +714,12 @@ void GsmReceive ()
 		//COMDEBUG.println ("found");
 		if (gsm_string.indexOf ("T:") != -1)
 		{
-			COMDEBUG.println ("+CMT");
+			Debug ("+CMT\n");
 			start = gsm_string.length () - 5;
 			String command = gsm_string.substring (start, start + 3);
 			char pom2[4];//pomocna pro prikaz
 			command.toCharArray (pom2, 4);
-			COMDEBUG.println (pom2);
+			Debug (String (pom2));
 			char nmbx = pom2[0] - 0x30;
 			nmbx -= 1;
 			if (outputs[nmbx].IsExtControl)
@@ -735,10 +745,11 @@ void ComControlReceive ()
 	char pomocna = 0;//test
 	while (1)
 	{
-
-		while (COMCONTROL.available ())
+		if (!isBTcontrol)
 		{
-			recChar = COMCONTROL.read ();
+		while (USBCONTROL.available ())
+		{
+			recChar = USBCONTROL.read ();
 			rxBuffer[rxBufferIndex++] = (char)recChar;
 			if (recChar == '\n')
 			{
@@ -746,6 +757,22 @@ void ComControlReceive ()
 				break;
 			}
 		}
+		}
+
+		else 
+		{
+			while (BT_CONTROL.available ())
+			{
+				recChar = BT_CONTROL.read ();
+				rxBuffer[rxBufferIndex++] = (char)recChar;
+				if (recChar == '\n')
+				{
+					recMsg = true;
+					break;
+				}
+			}
+		}
+
 		if (rxBufferIndex > 99)break;
 		if (recMsg)
 		{
@@ -756,20 +783,20 @@ void ComControlReceive ()
 			memcpy (pom_buf, rxBuffer, rxBufferIndex - 1);
 			pom_buf[rxBufferIndex - 1] = 0;
 
-			COMDEBUG.println (pom_buf);
+			Debug(String(pom_buf)+"\n");
 			if (pom_buf[0] == 'T')
 			{
 				RozdelString (pom_buf, '#');
 				dateTime.SetDateTime (pomTs);
 				rxBufferIndex = 0;
-				COMCONTROL.println ("recTok");
+				Com ("recTok\n");
 				break;
 			}
 
 			else if (pom_buf[0] == 'C')// vymaz pamet udalosti
 			{
 			rxBufferIndex = 0;
-					COMDEBUG.println ("xx");
+					Debug ("xx\n");
 				ClearEventList ();
 				//VypisPametUdalosti ();
 				break;
@@ -812,7 +839,7 @@ void ComControlReceive ()
 					//COMDEBUG.println ("ok");
 					gsmData.isEnabled = pom_buf[3] - 0x30;
 					gsmData.isResponse = pom_buf[4] - 0x30;
-					COMDEBUG.println (gsmData.isEnabled); COMDEBUG.println (gsmData.isResponse);
+					Debug (String(gsmData.isEnabled)); Debug(String(gsmData.isResponse));
 					memcpy (&gsmData.telNumber, &pom_buf[5], 10);
 					//memcpy (&gsmData.telNumber[1], &pom_buf[15], 10);
 					//memcpy (&gsmData.telNumber[2], &pom_buf[25], 10);
@@ -828,11 +855,11 @@ void ComControlReceive ()
 
 
 					rxBufferIndex = 0;
-					if (recError) { COMCONTROL.println ("Err"); COMDEBUG.println ("Err"); }
+					if (recError) { Com("Err\n");/* BT_CONTROL.println ("Err");*/ }
 					else
 					{
 						//COMDEBUG.println ("recDok");
-						COMCONTROL.println ("recDok");
+						Com("recDok\n");
 						//VypisPamet ();
 						eepromPtr = 0;
 						EEPROM.put (eepromPtr, inputs);
@@ -853,7 +880,7 @@ void ComControlReceive ()
 
 				if (pom_buf[2] == 'O')
 				{
-					COMCONTROL.println ("O ctrl");
+					Com ("O ctrl\n");
 					char ox = pom_buf[4] - 0x30;
 					char st = pom_buf[6] - 0x30;
 					ChangeOutput (ox, st,(st == HIGH) ? ON_MAN : OFF_MAN);
@@ -889,7 +916,7 @@ void SendDateTime ()
 		sprintf (pomstr, "%2u,%1u %2u,%1u", teploty_new[0] / 10, teploty_new[0] % 10, teploty_new[1] / 10, teploty_new[1] % 10);
 		dateTime.GetDateTime ();
 		if (dateTime.dateTimeStr.sec == 0)minutes = dateTime.GetMinutes ();
-		COMCONTROL.println ("dt>" + dateTime.ToString () + '<' + pomstr + '<' + gsmSignal);
+		Com("dt>" + dateTime.ToString () + '<' + String(pomstr) + '<' +/* gsmSignal+*/ '\n');
 		delay (10);
 	//}
 }
@@ -1064,8 +1091,8 @@ void ObsluhaVstupu ()
 					{
 						SendLocalSms (i);
 						SaveEvent (SEND_SMS, i);
-						COMDEBUG.println (SEND_SMS, 16);
-						COMDEBUG.println (i, 10);
+						//BT_CONTROL.println (SEND_SMS, 16);
+						//BT_CONTROL.println (i, 10);
 					}
 					//prozvonit
 					else if (inputs[i].func_index - 0x30 == 5)
@@ -1078,8 +1105,8 @@ void ObsluhaVstupu ()
 							inputs[i].isCallingGsm = true;
 							currCallingInput = i;
 							SaveEvent (RING, i);
-							COMDEBUG.println (RING, 16);
-							COMDEBUG.println (i, 10);
+							//BT_CONTROL.println (RING, 16);
+							//BT_CONTROL.println (i, 10);
 						}
 
 					}
@@ -1092,7 +1119,7 @@ void ObsluhaVstupu ()
 						delay (2000);
 						if (!inputs[i].isCallingGsm)
 						{
-							COMDEBUG.println ("ring");
+							//BT_CONTROL.println ("ring");
 							gsmModul.Call (inputs[i].tel);
 							casProzvaneni = 35;
 							inputs[i].isCallingGsm = true;
@@ -1137,11 +1164,13 @@ void SendLocalSms (char nmb)
 
 void Debug (String str)
 {
-
+	if (!isBTcontrol)BT_CONTROL.print (str);
+	else USBCONTROL.print (str);
 }
 
-void Com ()
+void Com (String str)
 {
-
+	if (isBTcontrol)BT_CONTROL.print (str);
+	else USBCONTROL.print (str);
 }
 
