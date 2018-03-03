@@ -30,6 +30,30 @@
 
 
 #pragma region makra
+//protokol udalosti
+#define EE_EVENT_POINTER 558
+#define START_POINT 560
+
+#define RST 0x0000
+#define ON_I 0x10
+#define OFF_I 0x20
+#define ON_TEMP1 0x30
+#define OFF_TEMP1 0x40
+#define ON_TEMP2 0x50
+#define OFF_TEMP2 0x60
+#define ON_SWATCH 0x70
+#define OFF_SWATCH 0x80
+#define ON_SWCLOCK 0x90
+#define OFF_SWCLOCK 0xa0
+#define ON_SMS 0xb0
+#define OFF_SMS 0xc0
+#define ON_RNG 0xd0
+#define OFF_RNG 0xe0
+#define ON_MAN 0xf0
+#define OFF_MAN 0x100
+#define SEND_SMS 0x200
+#define RING 0x300
+#define RING_SMS 0x400
 
 //#define CONTROLCOMBLUE
 #ifdef CONTROLCOMBLUE// opro komunikaci s programem pouzit bluetooth
@@ -47,6 +71,20 @@
 #pragma endregion
 
 #pragma region typedefs
+typedef struct
+{
+	char yy;
+	char mnt;
+	char day;
+	char hr;
+	char min;
+	char ss;
+	int evnt;
+}Event;
+
+Event event;
+
+
 typedef struct In
 {
 	char func_index;
@@ -116,6 +154,7 @@ typedef struct
 	char outNmb;//cislo vystupu ovladaneho externe prozvonenim
 	boolean isRinging;
 	boolean isActivated;
+	boolean isFound;//bylo nalezeno spravne cislo
 }GsmData;
 
 GsmData gsmData;

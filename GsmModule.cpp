@@ -74,13 +74,13 @@ bool GsmModule::HangOut()
 String GsmModule::Signal()
 {
 	COMGSM.print("AT+CSQ\r\n");
-	if (GsmAck ("OK"))
-	{
-		int start = rx_buffer.indexOf ("SQ:", 5) + 4;
-		int end = start+2;
-		return rx_buffer.substring (start, end);
-	}
-	else return "ERR";
+	//delay (150);
+	//	int start = rx_buffer.indexOf ("SQ:", 5) + 4;
+	//	int end = start+2;
+	//	return rx_buffer.substring (start, end);
+	
+	return "";
+	//else return "ERR";
 }
 
 String GsmModule::Operator()

@@ -16,6 +16,7 @@ DallasTemperature sensors (&oneWire);
 #pragma endregion
 void setup ()
 {
+
 	pinMode (inpNmbs[0], INPUT_PULLUP);
 	pinMode (inpNmbs[1], INPUT_PULLUP);
 	pinMode (inpNmbs[2], INPUT_PULLUP);
@@ -29,17 +30,21 @@ void setup ()
 
 	COMCONTROL.begin (38400);
 	while (!COMCONTROL);
-	delay (1000);
+	//delay (1000);
 	COMDEBUG.begin (38400);
-	delay (1000);
+	//delay (1000);
 	while (!COMDEBUG);
 	COMGSM.begin (9600);
-	delay (1000);
+	//delay (1000);
 	while (!COMGSM);
 	eepromPtr = 0;
 	EEPROM.get (eepromPtr, inputs);
 	eepromPtr = sizeof (inputs);
 	EEPROM.get (eepromPtr, outputs);
+	eepromPtr = sizeof (outputs);
+	EEPROM.get (eepromPtr, gsmData);
+	int ii = sizeof (inputs) + sizeof (outputs) + sizeof (gsmData);
+	COMDEBUG.println (ii, 10);
 	//dallas
 	// Start up the library
 	sensors.begin ();
@@ -78,7 +83,12 @@ void setup ()
 
 	}
 	casProzvaneni = 0;
-
+	gsmModul.Init ();
+	gsmModul.Signal ();
+	dateTime.GetDateTime ();
+	SaveEvent (0, 0);
+	//ClearEventList ();
+	//VypisPametUdalosti ();
 	//VypisPamet ();
 }
 
@@ -137,12 +147,12 @@ void ExecuteGsmCommad (char nmbOut, char outState)
 {
 	switch (nmbOut)
 	{
-	case '1': ChangeOutput (0, (outState == 'n') ? HIGH : LOW); break;
-	case '2': ChangeOutput (1, (outState == 'n') ? HIGH : LOW); break;
-	case '3': ChangeOutput (2, (outState == 'n') ? HIGH : LOW); break;
-	case '4': ChangeOutput (3, (outState == 'n') ? HIGH : LOW); break;
-	case '5': ChangeOutput (4, (outState == 'n') ? HIGH : LOW); break;
-	case '6': ChangeOutput (5, (outState == 'n') ? HIGH : LOW); break;
+	case '1': ChangeOutput (0, (outState == 'n') ? HIGH : LOW, (outState == 'n') ? ON_SMS : OFF_SMS); break;
+	case '2': ChangeOutput (1, (outState == 'n') ? HIGH : LOW, (outState == 'n') ? ON_SMS : OFF_SMS); break;
+	case '3': ChangeOutput (2, (outState == 'n') ? HIGH : LOW, (outState == 'n') ? ON_SMS : OFF_SMS); break;
+	case '4': ChangeOutput (3, (outState == 'n') ? HIGH : LOW, (outState == 'n') ? ON_SMS : OFF_SMS); break;
+	case '5': ChangeOutput (4, (outState == 'n') ? HIGH : LOW, (outState == 'n') ? ON_SMS : OFF_SMS); break;
+	case '6': ChangeOutput (5, (outState == 'n') ? HIGH : LOW, (outState == 'n') ? ON_SMS : OFF_SMS); break;
 	case '?': SendStatus (); break;
 	}
 }
@@ -195,11 +205,96 @@ void SendStatus ()
 	casBlokovaniSms = 15;
 }
 
-void ChangeOutput (char out, char state)//cislo vystupu,cislo pinu,stav
+void SaveEvent (int ev, char nmb_i_o)
+{
+	event.yy = dateTime.dateTimeStr.year -2000;
+	event.mnt = dateTime.dateTimeStr.mon;
+	event.day = dateTime.dateTimeStr.mday;
+	event.hr = dateTime.dateTimeStr.hour;
+	event.min = dateTime.dateTimeStr.min;
+	event.ss = dateTime.dateTimeStr.sec;
+	event.evnt = ev|nmb_i_o;
+	unsigned char ee_ptr_events;
+	EEPROM.get (EE_EVENT_POINTER, ee_ptr_events);
+	EEPROM.put (START_POINT +( ee_ptr_events*sizeof (Event)), event);
+	if (++ee_ptr_events > 50)ee_ptr_events = 0;
+	EEPROM.put (EE_EVENT_POINTER, ee_ptr_events);
+	
+}
+
+void ClearEventList ()
+{
+	Event pomEvent;
+	pomEvent.yy = 0xFF;
+	pomEvent.mnt = 0xFF;
+	pomEvent.day = 0xFF;
+	pomEvent.hr = 0xFF;
+	pomEvent.min = 0xFF;
+	pomEvent.ss = 0xFF;
+	pomEvent.evnt = 0xFFFF;
+	for (int i = 0; i < 50; i++)
+	{
+		EEPROM.put (START_POINT + i*sizeof(Event), pomEvent);
+	}
+	EEPROM.put (EE_EVENT_POINTER, 0x00);
+}
+
+void VypisPametUdalosti ()
+{
+COMCONTROL.print ("event");
+	signed char ptr;	//ukazatel v bufferu 50ti udalosti
+	EEPROM.get (EE_EVENT_POINTER, ptr);//nacteni hodnoty z eeprom
+	//COMDEBUG.print (ptr,10);
+	//ptr;//snizeni o 1
+	char pom_ptr = ptr;//pomocna pro dalsi pouziti
+	
+	//COMDEBUG.println (ptr,10);
+    char pom_buf[17];
+	do
+	{
+		int ptr2 = START_POINT + (ptr * sizeof (Event));
+		//COMDEBUG.println (ptr2,10);
+		EEPROM.get (ptr2, event);  
+  //      
+		//sprintf (pom_buf, ">%02x %02x %02x %02x %02x %02x %04X", event.yy, event.mnt, event.day, event.hr, event.min, event.ss, event.evnt);
+		//COMDEBUG.println (pom_buf);
+		if (event.yy != 0xFF)
+		{
+		sprintf (pom_buf, ">%u %u %u %u %02u %02u %04X", event.yy, event.mnt, event.day, event.hr, event.min, event.ss, event.evnt);
+		COMCONTROL.print (pom_buf);
+		}
+
+		ptr--;
+	} while (ptr >= 0);
+	//COMDEBUG.println ("dalsi");
+	ptr = 50;
+	int ptr2;
+	do
+	{
+	    ptr2 = START_POINT + (ptr * sizeof (Event));
+		EEPROM.get (ptr2, event);
+		//COMDEBUG.println (ptr2, 10);
+		if (event.yy != 0xFF)
+		{
+			//char pom_buf[17];
+			sprintf (pom_buf, ">%u %u %u %u %02u %02u %04X", event.yy, event.mnt, event.day, event.hr, event.min, event.ss, event.evnt);
+			COMCONTROL.print (pom_buf);
+		}
+		ptr--;
+	} while (ptr > pom_ptr);
+	COMCONTROL.println (">");
+
+	
+}
+
+void ChangeOutput (char out, char state,int ev)//cislo vystupu,cislo pinu,stav
 {
 	outputs[out].state = state;
 	digitalWrite (outNmbs[out], state);//zapis stav na vystup
+	SaveEvent (ev, out);
 	sendOutsFlg = true;
+	COMDEBUG.println (ev, 16);
+	COMDEBUG.println (out,10);
 	//delay (100);
 }
 
@@ -371,13 +466,13 @@ void TimerTick ()
 		}
 		/*	else
 			{*/
-		COMDEBUG.println (casProzvaneni, 10);
+		//COMDEBUG.println (casProzvaneni, 10);
 		//}
 	}
 
 	if (casZpozdeniSms)
 	{
-		COMDEBUG.println (casZpozdeniSms, 10);
+		//COMDEBUG.println (casZpozdeniSms, 10);
 		inputs[currCallingInput].isWaitingSms = false;
 		if (--casZpozdeniSms == 0)SendLocalSms (currCallingInput);//
 	}
@@ -409,7 +504,10 @@ void TimerTick ()
 
 void CtiTeploty ()
 {
+	static char cnt;
+	unsigned long time = millis ();
 	sensors.requestTemperatures (); // Send the command to get temperatures
+
 	for (int i = 0; i < 2; i++)//numberOfDevices
 	{
 
@@ -426,6 +524,8 @@ void CtiTeploty ()
 		}
 
 	}
+	unsigned long cas = millis () - time;
+	COMDEBUG.println (cas, 10);
 }
 
 //void VypisPamet ()
@@ -534,30 +634,47 @@ void CtiTeploty ()
 void GsmReceive ()
 {
 	String gsm_string;
+	signed int start,end;
+	char pom[10];//pomocna pro tel cislo
 	while (COMGSM.available ())
 	{
 		gsm_string = COMGSM.readString ();
 	}
 
 	COMDEBUG.println (gsm_string);
-	boolean isFound = false;
-	boolean isMaster = false;
-	int start = gsm_string.indexOf ("+420");
+	start = gsm_string.indexOf ("SQ:", 5);
+	if ( start != -1)
+	{
+		//COMDEBUG.println (">>");
+		//
+	    start = gsm_string.indexOf ("SQ:", 5) + 4;
+		end = start+2;
+		gsmSignal = gsm_string.substring (start, end);
+		//COMDEBUG.println (gsmSignal);
+	}
+	else
+	{
+    start = gsm_string.indexOf ("+420");
+	if (start != -1)
+	{
 	String telnmb = gsm_string.substring (start + 4, start + 13);
 	//COMDEBUG.println (telnmb);
-	char pom[10];//pomocna pro tel cislo
+	
 	telnmb.toCharArray (pom, 10);
-	//COMDEBUG.println (pom);
-	//COMDEBUG.println (gsmData.telNumber[0]);
-	//COMDEBUG.println (gsmData.telNumber[1]);
+	}
+	}
+
 
 	if (gsm_string.indexOf ("CARR") != -1 /*&& gsmData.isRinging*/)//no carrier
 	{
 		COMDEBUG.println ("nocarr");
 		gsmData.isRinging = false;
 		gsmData.isActivated = false;
-		if (isFound && gsmData.isResponse)
+		COMDEBUG.println (gsmData.isFound);
+		COMDEBUG.println (gsmData.isResponse);
+		if (gsmData.isFound && gsmData.isResponse)
 		{
+			gsmData.isFound = false;
 			delay (100);
 			SendStatus ();
 		}
@@ -569,20 +686,21 @@ void GsmReceive ()
 	{
 		COMDEBUG.println ("ring");
 		//COMDEBUG.println (gsmData.outNmb,2);
+		gsmData.isFound = true;
 		gsmData.isActivated = true;
 
 		if (outputs[gsmData.outNmb].IsExtControl)
 		{
 			if (outputs[gsmData.outNmb].state == HIGH)outputs[gsmData.outNmb].state = LOW;
 			else outputs[gsmData.outNmb].state = HIGH;
-			ChangeOutput (gsmData.outNmb, outputs[gsmData.outNmb].state);
+			ChangeOutput (gsmData.outNmb, outputs[gsmData.outNmb].state,(outputs[gsmData.outNmb].state == HIGH) ? ON_RNG : OFF_RNG);
 		}
 	}
 
 
 	else if (strncmp (pom, gsmData.telNumber, 9) == 0)
 	{
-		isFound = true;
+		gsmData.isFound = true;
 		//COMDEBUG.println ("found");
 		if (gsm_string.indexOf ("T:") != -1)
 		{
@@ -648,6 +766,24 @@ void ComControlReceive ()
 				break;
 			}
 
+			else if (pom_buf[0] == 'C')// vymaz pamet udalosti
+			{
+			rxBufferIndex = 0;
+					COMDEBUG.println ("xx");
+				ClearEventList ();
+				//VypisPametUdalosti ();
+				break;
+			}
+
+			else if (pom_buf[0] == 'U')//pamet udalosti
+			{
+				VypisPametUdalosti ();
+				rxBufferIndex = 0;
+				break;
+			}
+
+
+
 			else if (pom_buf[0] == 'D')
 			{
 				//COM.println ("rec2");
@@ -686,6 +822,7 @@ void ComControlReceive ()
 					gsmData.outNmb = pom_buf[15] - 0x30;
 				}
 
+
 				if (rxBuffer[rxBufferIndex - 3] == 'E')
 				{
 
@@ -701,6 +838,8 @@ void ComControlReceive ()
 						EEPROM.put (eepromPtr, inputs);
 						eepromPtr = sizeof (inputs);
 						EEPROM.put (eepromPtr, outputs);
+						eepromPtr = sizeof (outputs);
+						EEPROM.put (eepromPtr, gsmData);
 					}
 					break;
 				}
@@ -717,7 +856,7 @@ void ComControlReceive ()
 					COMCONTROL.println ("O ctrl");
 					char ox = pom_buf[4] - 0x30;
 					char st = pom_buf[6] - 0x30;
-					ChangeOutput (ox, st);
+					ChangeOutput (ox, st,(st == HIGH) ? ON_MAN : OFF_MAN);
 				}
 				break;
 			}
@@ -737,18 +876,14 @@ void SendDateTime ()
 {
 	static char counter = 0;
 	char pomstr[10];
-	if (++counter > 20)
+	if (++counter > 10)
 	{
 		counter = 0;
-		gsmModul.Init ();
-
-		////COM.println (gsmModul.Operator());
-		//gsmSignal = gsmModul.Signal ();
-		sendDateTimeFlg = false;
-		delay (10);
+        gsmModul.Signal();
+		//sendDateTimeFlg = false;
 	}
-	else
-	{
+	//else
+	//{
 		sendDateTimeFlg = false;
 		CtiTeploty ();
 		sprintf (pomstr, "%2u,%1u %2u,%1u", teploty_new[0] / 10, teploty_new[0] % 10, teploty_new[1] / 10, teploty_new[1] % 10);
@@ -756,7 +891,7 @@ void SendDateTime ()
 		if (dateTime.dateTimeStr.sec == 0)minutes = dateTime.GetMinutes ();
 		COMCONTROL.println ("dt>" + dateTime.ToString () + '<' + pomstr + '<' + gsmSignal);
 		delay (10);
-	}
+	//}
 }
 
 void ObsluhaVystupu ()
@@ -772,13 +907,13 @@ void ObsluhaVystupu ()
 			{
 				if (whichTime[j] == first)//prvni cas
 				{
-					ChangeOutput (j, outputs[j].state);//zapis na vystup
+					ChangeOutput (j, outputs[j].state,(outputs[j].state == HIGH)? ON_SWATCH : OFF_SWATCH);//zapis na vystup
 					whichTime[j] = second;
 					outTimers[j] = outputs[j].controlTimes.timeOfPulse;
 				}
 				else if (whichTime[j] == second)//druhy cas
 				{
-					ChangeOutput (j, outputs[j].state);//zapis na vystup
+					ChangeOutput (j, outputs[j].state, (outputs[j].state == HIGH) ? ON_SWATCH : OFF_SWATCH);//zapis na vystup
 					whichTime[j] = first;
 					outTimers[j] = outputs[j].controlTimes.timeOfDelay;
 				}
@@ -787,7 +922,7 @@ void ObsluhaVystupu ()
 			{
 				//swSerial.println ("tmrchng");
 				delay (10);
-				ChangeOutput (j, outputs[j].state);
+				ChangeOutput (j, outputs[j].state, (outputs[j].state == HIGH) ? ON_SWATCH : OFF_SWATCH);
 			}
 		}
 		//spinaci hodiny
@@ -800,7 +935,7 @@ void ObsluhaVystupu ()
 
 					outputs[j].blockSendOn = true;
 					outputs[j].blockSendOff = false;
-					ChangeOutput (j, HIGH);
+					ChangeOutput (j, HIGH,ON_SWCLOCK);
 
 				}
 
@@ -808,7 +943,7 @@ void ObsluhaVystupu ()
 				{
 					outputs[j].blockSendOn = false;
 					outputs[j].blockSendOff = true;
-					ChangeOutput (j, LOW);
+					ChangeOutput (j, LOW,OFF_SWCLOCK);
 				}
 			}
 
@@ -829,13 +964,13 @@ void ObsluhaVystupu ()
 						//COM.print (j, 10);
 						outputs[j].blockSendOn = true;
 						outputs[j].blockSendOff = false;
-						ChangeOutput (j, LOW);
+						ChangeOutput (j, LOW, OFF_TEMP1);
 					}
 
 				}
 				else if (teploty_new[0] < outputs[j].Temperature - outputs[j].TempHysteresis && !outputs[j].blockSendOff)
 				{
-					ChangeOutput (j, HIGH);
+					ChangeOutput (j, HIGH, ON_TEMP1);
 					outputs[j].blockSendOn = false;
 					outputs[j].blockSendOff = true;
 				}
@@ -846,13 +981,13 @@ void ObsluhaVystupu ()
 			{
 				if (teploty_new[1] >= outputs[j].Temperature && !outputs[j].blockSendOn)
 				{
-					ChangeOutput (j, LOW);
+					ChangeOutput (j, LOW,OFF_TEMP2);
 					outputs[j].blockSendOn = true;
 					outputs[j].blockSendOff = false;
 				}
 				else if (teploty_new[1] < outputs[j].Temperature - outputs[j].TempHysteresis && !outputs[j].blockSendOff)
 				{
-					ChangeOutput (j, HIGH);
+					ChangeOutput (j, HIGH, ON_TEMP2);
 					outputs[j].blockSendOn = false;
 					outputs[j].blockSendOff = true;
 				}
@@ -881,7 +1016,7 @@ void ObsluhaVstupu ()
 				delay (10);//pockat kvuli odeslani stavu vystupu
 				for (int j = 0; j < 6; j++)
 				{
-					COMDEBUG.println (outputs[i].IsInputControl);
+					//COMDEBUG.println (outputs[i].IsInputControl);
 					//if (outputs[i].IsInputControl==false)continue;
 					switch (inputs[i].func_index - 0x30)
 					{
@@ -892,14 +1027,14 @@ void ObsluhaVstupu ()
 					case 4: break;
 					}
 					//pro sepnuti/vypnuti vystupu
-					if (inputs[i].func_index - 0x30 < 4)
+					if (inputs[i].func_index - 0x30 < 3)
 					{
 						if (inputs[i].outs[j] == '1')
 						{
 							if (outputs[j].state != state)
 							{
-								//if (outputs[j].IsInputControl)
-									ChangeOutput (j, state);//jen pri zmene
+	
+									ChangeOutput (j, state, (state == HIGH) ? ON_I : OFF_I);//jen pri zmene
 							}
 							outputs[j].state = state;//uloz novy stav
 						}
@@ -910,6 +1045,7 @@ void ObsluhaVstupu ()
 						//kdyz je vystupu nastavene ovladani casem a zaroven je prirazeny ctenemu vstupu
 						if (outputs[j].IsUseProgTmr&&inputs[i].outs[j] == '1')
 						{
+							ChangeOutput (j, state, ON_SWATCH);
 							/*							COM.print (j);
 							COM.print ("_okx_")*/;
 						if (outputs[j].IsNastCas)whichTime[j] = first;
@@ -927,6 +1063,9 @@ void ObsluhaVstupu ()
 					if (inputs[i].func_index - 0x30 == 4)
 					{
 						SendLocalSms (i);
+						SaveEvent (SEND_SMS, i);
+						COMDEBUG.println (SEND_SMS, 16);
+						COMDEBUG.println (i, 10);
 					}
 					//prozvonit
 					else if (inputs[i].func_index - 0x30 == 5)
@@ -935,9 +1074,12 @@ void ObsluhaVstupu ()
 						{
 							//COM.println (inputs[i].tel);
 							gsmModul.Call (inputs[i].tel);
-							casProzvaneni = 30;
+							casProzvaneni = 35;
 							inputs[i].isCallingGsm = true;
 							currCallingInput = i;
+							SaveEvent (RING, i);
+							COMDEBUG.println (RING, 16);
+							COMDEBUG.println (i, 10);
 						}
 
 					}
@@ -952,9 +1094,10 @@ void ObsluhaVstupu ()
 						{
 							COMDEBUG.println ("ring");
 							gsmModul.Call (inputs[i].tel);
-							casProzvaneni = 25;
+							casProzvaneni = 35;
 							inputs[i].isCallingGsm = true;
 							currCallingInput = i;
+							SaveEvent (RING_SMS, i);
 						}
 						Timer1.start ();
 					}
@@ -992,5 +1135,13 @@ void SendLocalSms (char nmb)
 	}
 }
 
+void Debug (String str)
+{
 
+}
+
+void Com ()
+{
+
+}
 
