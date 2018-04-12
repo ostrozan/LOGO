@@ -54,15 +54,16 @@
 #define SEND_SMS 0x200
 #define RING 0x300
 #define RING_SMS 0x400
+#define GSM_QEST 0x500
 
-//#define CONTROLCOMBLUE
+#define CONTROLCOMBLUE
 #ifdef CONTROLCOMBLUE// opro komunikaci s programem pouzit bluetooth
 #define COMCONTROL swSerial
 #define COMDEBUG Serial
 
 #else // opro komunikaci s programem pouzit usb konektor
-#define USBCONTROL Serial//
-#define BT_CONTROL swSerial
+#define COMCONTROL Serial//
+#define COMDEBUG swSerial
 #define COMGSM Serial1
 
 #endif // CONTROLCOMBLUE
@@ -102,7 +103,8 @@ typedef struct In
 	boolean blockSendOff;
 	boolean isCallingGsm;//priznak ze prozvani
 	boolean isSendingSms;//priznak ze poslal sms
-	boolean isWaitingSms;//priznak ze ceka sms na odeslani po prozvoneni
+	boolean isWaitingCall;//priznak ze ceka sms na odeslani po prozvoneni
+	signed char counter;
 }In;
 
 typedef struct
@@ -163,11 +165,9 @@ typedef enum { empty, first, second }enumFlag;
 #pragma endregion
 
 #pragma region promenne
-
-boolean isBTcontrol;
-char rxBuffer[100];
+char rxBuffer[105];
 char rozdelenyString[7][7];
-char divider[30];
+char divider[10];
 const unsigned char inpNmbs[4] = { A2,A3,A4,A5 };
 const unsigned char outNmbs[6] = { 4,5,6,7,8,9 };
 int nmbOfSubstr;
@@ -183,12 +183,12 @@ int rxBufferIndex;
 int recChar;
 boolean sendDateTimeFlg;
 boolean sendOutsFlg;
-int minutes;
+volatile int minutes;
 int eepromPtr;
 //pro fci setdatetime
 ts pomTs;
 //pro fci decode data
-char pom_strgs[6][12];
+//char pom_strgs[6][12];
 //char procenta[8] = { 0,0,0,0,0,0,0,0 };
 //char pomlcky[6] = { 0,0,0,0,0,0 };
 char maskIn;
@@ -200,14 +200,14 @@ char currCallingInput;//ktery vstup zrovna prozvani
 char currSendingSmsInput;//ktery vstup zrovna poslal sms
 char callingNumber;//index volajiciho cisla ze seznamu
 ///dallas
-int teploty_new[2];
+volatile int teploty_new[2];
 int teploty_old[2];
-#define ONE_WIRE_BUS A1
+#define ONE_WIRE_BUS A0
 #define TEMPERATURE_PRECISION 9 // Lower resolution
 
 
 
-int numberOfDevices; // Number of temperature devices found
+int numberOfFDallasDevices; // Number of temperature devices found
 
 DeviceAddress tempDeviceAddress; // We'll use this variable to store a found device address
 DeviceAddress addr[2];

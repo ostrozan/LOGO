@@ -16,7 +16,7 @@ GsmModule::~GsmModule()
 bool GsmModule::Init()
 {
 	COMGSM.print("AT\r\n");
-	isOK = GsmAck("OK");
+	//isOK = GsmAck("OK");
 	return isOK;
 }
 
