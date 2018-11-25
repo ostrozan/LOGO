@@ -59,7 +59,7 @@
 #define CONTROLCOMBLUE
 #ifdef CONTROLCOMBLUE// opro komunikaci s programem pouzit bluetooth
 #define COMCONTROL swSerial
-#define COMDEBUG Serial
+#define COMDEBUG Serial//comport pro nahravani programu a debug
 
 #else // opro komunikaci s programem pouzit usb konektor
 #define COMCONTROL Serial//

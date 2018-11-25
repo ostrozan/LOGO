@@ -800,6 +800,7 @@ void ComControlReceive ()
 			rxBuffer[rxBufferIndex] = (char)recChar;
 			if (recChar == '\n')
 			{
+				COMDEBUG.println ("recmsg");
 				recMsg = true;
 				break;
 			}
@@ -808,8 +809,8 @@ void ComControlReceive ()
 		if (rxBufferIndex > 99)break;
 		if (recMsg)
 		{
-			COMDEBUG.println (rxBufferIndex, 10);
-			COMDEBUG.println (rxBuffer);
+	/*		COMDEBUG.println (rxBufferIndex, 10);
+			COMDEBUG.println (rxBuffer);*/
 			boolean recError;
 			pomocna++;
 			recMsg = false;
@@ -824,8 +825,8 @@ void ComControlReceive ()
 			checksum &= 0xFF;
 			checksum = 0 - checksum;
 
-			COMDEBUG.println (rxBuffer[rxBufferIndex - 1], 10);
-			COMDEBUG.println (checksum, 10);
+			//COMDEBUG.println (rxBuffer[rxBufferIndex - 1], 10);
+			//COMDEBUG.println (checksum, 10);
 			if (checksum != rxBuffer[rxBufferIndex - 1])
 			{
 				rxBufferIndex = 0; recError = true;
@@ -841,7 +842,7 @@ void ComControlReceive ()
 				memcpy (pom_buf, rxBuffer, rxBufferIndex - 1);
 				pom_buf[rxBufferIndex-1] = '\0';
 
-				COMDEBUG.println (pom_buf);
+				//COMDEBUG.println (pom_buf);
 				if (pom_buf[0] == 'T')
 				{
 					RozdelString (pom_buf, '#');
@@ -862,7 +863,7 @@ void ComControlReceive ()
 
 				else if (pom_buf[0] == 'U')//pamet udalosti
 				{
-					COMDEBUG.println ("pamet");
+					//COMDEBUG.println ("pamet");
 					VypisPametUdalosti ();
 					rxBufferIndex = 0;
 					break;
@@ -913,7 +914,7 @@ void ComControlReceive ()
 						rxBufferIndex = 0;
 						delay (100);
 
-						COMDEBUG.println ("recDok");
+						//COMDEBUG.println ("recDok");
 						COMCONTROL.println ("recDok");
 						VypisPamet ();
 						eepromPtr = 0;
